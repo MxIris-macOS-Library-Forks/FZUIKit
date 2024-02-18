@@ -8,10 +8,14 @@
 #if os(macOS)
     import AppKit
     import SwiftUI
-
+    /**
+     A view that indicates there’s no content to display.
+ 
+     Use a content-unavailable view to indicate that your app can’t display content. For example, content may not be available if a search returns no results or your app is loading data over the network.
+     */
     @available(macOS 12.0, *)
     public class NSContentUnavailableView: NSView, NSContentView {
-        /// The current configuration of the view.
+        /// The content-unavailable configuration.
         public var configuration: NSContentConfiguration {
             get { appliedConfiguration }
             set {
@@ -20,26 +24,31 @@
                 }
             }
         }
+        
+        public override func layout() {
+            super.layout()
+            
+            hostingView.frame.size.height = bounds.height - appliedConfiguration.directionalLayoutMargins.height
+            hostingView.frame.size.width = bounds.width - appliedConfiguration.directionalLayoutMargins.width
+            backgroundView.frame = hostingView.frame
+        }
 
         /// Determines whether the view is compatible with the provided configuration.
         public func supports(_ configuration: NSContentConfiguration) -> Bool {
             configuration is NSContentUnavailableConfiguration
         }
 
-        /// Creates a item content view with the specified content configuration.
+        /// Creates a new content-unavailable view with the specified configuration.
         public init(configuration: NSContentUnavailableConfiguration) {
             appliedConfiguration = configuration
             super.init(frame: .zero)
-            backgroundConstraints = addSubview(withConstraint: backgroundView)
-            hostingConstraints = addSubview(withConstraint: hostingView)
+            addSubview(backgroundView)
+            addSubview(hostingView)
             updateConfiguration()
         }
 
-        var backgroundConstraints: [NSLayoutConstraint] = []
-        var hostingConstraints: [NSLayoutConstraint] = []
-
-        lazy var backgroundView: (NSView & NSContentView) = appliedConfiguration.background.makeContentView()
-
+        lazy var backgroundView: (NSView & NSContentView) = appliedConfiguration.background.makeContentView()        
+        
         var appliedConfiguration: NSContentUnavailableConfiguration {
             didSet {
                 if oldValue != appliedConfiguration {
@@ -51,26 +60,15 @@
         func updateConfiguration() {
             backgroundView.configuration = appliedConfiguration.background
             hostingView.rootView = ContentView(configuration: appliedConfiguration)
-
-            backgroundConstraints[1].constant = -appliedConfiguration.directionalLayoutMargins.bottom
-            backgroundConstraints[0].constant = appliedConfiguration.directionalLayoutMargins.leading
-            backgroundConstraints[2].constant = -appliedConfiguration.directionalLayoutMargins.width
-            backgroundConstraints[3].constant = -appliedConfiguration.directionalLayoutMargins.height
-
-            hostingConstraints[1].constant = -appliedConfiguration.directionalLayoutMargins.bottom
-            hostingConstraints[0].constant = appliedConfiguration.directionalLayoutMargins.leading
-            hostingConstraints[2].constant = -appliedConfiguration.directionalLayoutMargins.width
-            hostingConstraints[3].constant = -appliedConfiguration.directionalLayoutMargins.height
+            
+            hostingView.frame.origin.x = appliedConfiguration.directionalLayoutMargins.leading
+            hostingView.frame.origin.y = appliedConfiguration.directionalLayoutMargins.bottom
+            hostingView.frame.size.height = bounds.height - appliedConfiguration.directionalLayoutMargins.height
+            hostingView.frame.size.width = bounds.width - appliedConfiguration.directionalLayoutMargins.width
+            backgroundView.frame = hostingView.frame
         }
 
-        lazy var hostingView: NSHostingView<ContentView> = {
-            let contentView = ContentView(configuration: self.appliedConfiguration)
-            let hostingView = NSHostingView(rootView: contentView)
-            hostingView.backgroundColor = .clear
-            hostingView.translatesAutoresizingMaskIntoConstraints = false
-            hostingView.clipsToBounds = false
-            return hostingView
-        }()
+        lazy var hostingView = NSHostingView(rootView: ContentView(configuration: self.appliedConfiguration))
 
         @available(*, unavailable)
         required init?(coder _: NSCoder) {
@@ -116,10 +114,12 @@
             var imageItem: some View {
                 if let image = configuration.image {
                     Image(image)
+                        .scaling(configuration.imageProperties.scaling)
                         .frame(maxWidth: configuration.imageProperties.maximumWidth, maxHeight: configuration.imageProperties.maximumHeight)
                         .foregroundColor(configuration.imageProperties.tintColor?.swiftUI)
                         .symbolConfiguration(configuration.imageProperties.symbolConfiguration)
                         .cornerRadius(configuration.imageProperties.cornerRadius)
+                        .shadow(configuration.imageProperties.shadow)
                 }
             }
 
@@ -133,10 +133,42 @@
 
             @ViewBuilder
             var loadingIndicatorItem: some View {
-                if configuration.displayLoadingIndicator {
-                    ProgressView()
-                        .controlSize(.small)
-                        .progressViewStyle(CircularProgressViewStyle())
+                if let loadingIndicator = configuration.loadingIndicator {
+                    switch loadingIndicator {
+                    case .spinning(let size):
+                        ProgressView()
+                            .controlSize(size.swiftUI)
+                    case .bar(let value, let total, let text, let textStyle, let textColor, let size, let width):
+                        if let text = text {
+                            ProgressView(value: value, total: total) {
+                                Text(text)
+                                    .font(.system(textStyle.swiftUI))
+                                    .foregroundStyle(Color(textColor))
+                            }
+                            .progressViewStyle(.linear)
+                            .controlSize(size.swiftUI)
+                            .frame(width: width)
+                        } else {
+                            ProgressView(value: value, total: total)
+                                .progressViewStyle(.linear)
+                                .controlSize(size.swiftUI)
+                                .frame(maxWidth: width)
+                        }
+                    case .circular(let value, let total, let text, let textStyle, let textColor, let size):
+                        if let text = text {
+                            ProgressView(value: value, total: total) {
+                                Text(text)
+                                    .font(.system(textStyle.swiftUI))
+                                    .foregroundStyle(Color(textColor))
+                            }
+                            .progressViewStyle(.circular)
+                                .controlSize(size.swiftUI)
+                        } else {
+                            ProgressView(value: value, total: total)
+                                .progressViewStyle(.circular)
+                                .controlSize(size.swiftUI)
+                        }
+                    }
                 }
             }
 
@@ -168,26 +200,38 @@
 
             var body: some View {
                 Button {
-                    configuration.action()
+                    configuration.action?()
                 } label: {
                     if let atributedTitle = configuration.atributedTitle {
                         if let image = configuration.image {
-                            Label { Text(atributedTitle) } icon: { Image(image) }
+                            Label { Text(atributedTitle) } icon: { 
+                                Image(image)
+                                    .resizable()
+                                   // .frame(width: configuration.size.size?.width, height: configuration.size.size?.height)
+                            }
                         } else {
                             Text(atributedTitle)
                         }
                     } else if let title = configuration.title {
                         if let image = configuration.image {
-                            Label { Text(title) } icon: { Image(image) }
+                            Label { Text(title) } icon: {
+                                Image(image)
+                                    .resizable()
+                                 //   .frame(width: configuration.size.size?.width, height: configuration.size.size?.height)
+                            }
                         } else {
                             Text(title)
                         }
                     } else if let image = configuration.image {
                         Image(image)
+                            .resizable()
+                           // .frame(width: configuration.size.size?.width, height: configuration.size.size?.height)
                     }
                 }.buttonStyling(configuration.style)
                     .foregroundColor(configuration.contentTintColor?.swiftUI)
                     .symbolConfiguration(configuration.symbolConfiguration)
+                    .controlSize(configuration.size.swiftUI)
+                    .frame(width: configuration.image != nil && configuration.style == .borderless ? configuration.size.size?.width : nil, height: configuration.image != nil && configuration.style == .borderless ? configuration.size.size?.height : nil)
             }
         }
 
@@ -216,8 +260,9 @@
                     .frame(maxWidth: .infinity, alignment: .center)
                     .multilineTextAlignment(.center)
                     .font(properties.font.swiftUI)
-                    .lineLimit(properties.maxNumberOfLines)
+                    .lineLimit(properties._maxNumberOfLines)
                     .foregroundColor(properties.color.swiftUI)
+                    .minimumScaleFactor(properties.minimumScaleFactor)
             }
         }
     }

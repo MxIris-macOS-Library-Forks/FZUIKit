@@ -9,43 +9,131 @@
     import AppKit
     import FZSwiftUtils
 
-    public extension NSStatusItem {
-        /// The handler to be called when the status item gets clicked.
-        var onClick: NSButton.ActionBlock? {
-            get { getAssociatedValue(key: "_statusItemActionBlock", object: self, initialValue: nil) }
-            set { set(associatedValue: newValue, key: "_statusItemActionBlock", object: self)
+    extension NSStatusItem {
+        /**
+         The handler to be called when the status item gets clicked.
+         
+         To detect right clicks, use ``onRightClick``.
+         
+         When using this handler, the `action` and `target` of the item's button is set to `nil` and this handler is used  instead.
+         */
+        public var onClick: (()->())? {
+            get { getAssociatedValue(key: "onClick", object: self, initialValue: nil) }
+            set { set(associatedValue: newValue, key: "onClick", object: self)
                 updateAction()
             }
         }
 
-        /// The handler to be called when the status item gets right clicked.
-        var onRightClick: NSButton.ActionBlock? {
-            get { getAssociatedValue(key: "_statusItemRightActionBlock", object: self, initialValue: nil) }
-            set { set(associatedValue: newValue, key: "_statusItemRightActionBlock", object: self)
+        /**
+         The handler to be called when the status item gets right clicked.
+         
+         To detect left clicks, use ``onClick``.
+         
+         When using this handler, the `action` and `target` of the item's button is set to `nil` and this handler is used  instead.
+         */
+        public var onRightClick: (()->())? {
+            get { getAssociatedValue(key: "onRightClick", object: self, initialValue: nil) }
+            set { set(associatedValue: newValue, key: "onRightClick", object: self)
+                updateAction()
+            }
+        }
+        
+        /// The menu that is displayed when the item is right clicked.
+        public var rightClickMenu: NSMenu? {
+            get { getAssociatedValue(key: "rightClickMenu", object: self, initialValue: nil) }
+            set { set(associatedValue: newValue, key: "rightClickMenu", object: self)
+                updateAction()
+            }
+        }
+        
+        
+        
+        /// The mouse holding state.
+        public enum MouseClickState: Int, Hashable {
+            /// The mouse started clicking the item.
+            case started
+            /// The mouse ended clicking the item.
+            case ended
+        }
+        
+        /**
+         The handler that gets called when the mouse is clicking and holding the item.
+         
+         - Parameter state: The mouse holding state.
+         */
+        public var onMouseHold: ((_ state: MouseClickState)->())? {
+            get { getAssociatedValue(key: "onMouseHold", object: self, initialValue: nil) }
+            set { set(associatedValue: newValue, key: "onMouseHold", object: self)
+                updateAction()
+            }
+        }
+        
+        /**
+         The handler that gets called when the mouse is right clicking and holding the item.
+         
+         - Parameter state: The mouse holding state.
+         */
+        public var onRightMouseHold: ((MouseClickState)->())? {
+            get { getAssociatedValue(key: "onRightMouseHold", object: self, initialValue: nil) }
+            set { set(associatedValue: newValue, key: "onRightMouseHold", object: self)
                 updateAction()
             }
         }
 
-        internal func updateAction() {
+        func updateAction() {
             var mask: NSEvent.EventTypeMask = []
             if onClick != nil {
                 mask.insert(.leftMouseUp)
             }
 
-            if onRightClick != nil {
+            if onRightClick != nil || rightClickMenu != nil {
                 mask.insert(.rightMouseUp)
+            }
+            
+            if onMouseHold != nil {
+                mask.insert([.leftMouseDown, .leftMouseUp])
+            }
+            
+            if onRightMouseHold != nil {
+                mask.insert([.rightMouseDown, .rightMouseUp])
             }
 
             button?.sendAction(on: mask)
-            button?.actionBlock = { [weak self] button in
-                guard let self = self else { return }
-                let event = NSApp.currentEvent!
-                if let onRightClick = self.onRightClick, event.type == .rightMouseUp {
-                    onRightClick(button)
-                } else if event.type == .leftMouseUp, let onClick = self.onClick {
-                    onClick(button)
+            if onClick != nil || onRightClick != nil || onMouseHold != nil || onRightMouseHold != nil || rightClickMenu != nil {
+                button?.actionBlock = { [weak self] button in
+                    guard let self = self, let event = NSApp.currentEvent else { return }
+                    switch event.type {
+                    case .leftMouseDown:
+                        self.onMouseHold?(.started)
+                    case .leftMouseUp:
+                        self.onMouseHold?(.ended)
+                        self.onClick?()
+                    case .rightMouseDown:
+                        self.onRightMouseHold?(.started)
+                    case .rightMouseUp:
+                        self.onRightMouseHold?(.ended)
+                        self.onRightClick?()
+                        if let rightClickMenu = self.rightClickMenu {
+                            self.perform(NSSelectorFromString("popUpStatusItemMenu:"), with: rightClickMenu)
+                        }
+                    default: break
+                    }
                 }
+            } else {
+                button?.actionBlock = nil
             }
+        }
+        
+        /// The title of the item's button.
+        public var title: String? {
+            get { button?.title }
+            set { button?.title = newValue ?? "" }
+        }
+        
+        /// The image of the item's button.
+        public var image: NSImage? {
+            get { button?.image }
+            set { button?.image = newValue }
         }
 
         /**
@@ -57,7 +145,7 @@
 
          - Returns: Returns  the status item.
          */
-        convenience init(title: String, menu: NSMenu) {
+        public convenience init(title: String, menu: NSMenu) {
             self.init()
             button?.title = title
             self.menu = menu
@@ -72,7 +160,7 @@
 
          - Returns: Returns  the status item.
          */
-        convenience init(title: String, @MenuBuilder items: () -> [NSMenuItem]) {
+        public convenience init(title: String, @MenuBuilder items: () -> [NSMenuItem]) {
             self.init(title: title, menu: NSMenu(items: items()))
         }
 
@@ -85,7 +173,7 @@
 
          - Returns: Returns  the status item.
          */
-        convenience init(title: String, action: @escaping NSButton.ActionBlock) {
+        public convenience init(title: String, action: @escaping ()->()) {
             self.init()
             button?.title = title
             onClick = action
@@ -100,7 +188,7 @@
 
          - Returns: Returns  the status item.
          */
-        convenience init(image: NSImage, menu: NSMenu) {
+        public convenience init(image: NSImage, menu: NSMenu) {
             self.init()
             button?.image = image
             self.menu = menu
@@ -115,7 +203,7 @@
 
          - Returns: Returns  the status item.
          */
-        convenience init(image: NSImage, @MenuBuilder items: () -> [NSMenuItem]) {
+        public convenience init(image: NSImage, @MenuBuilder items: () -> [NSMenuItem]) {
             self.init(image: image, menu: NSMenu(items: items()))
         }
 
@@ -128,13 +216,12 @@
 
          - Returns: Returns  the status item.
          */
-        convenience init(image: NSImage, action: @escaping NSButton.ActionBlock) {
+        public convenience init(image: NSImage, action: @escaping ()->()) {
             self.init()
             button?.image = image
             onClick = action
         }
 
-        @available(macOS 11.0, *)
         /**
          Creates a status item with the specified symbol image and menu items.
 
@@ -144,14 +231,14 @@
 
          - Returns: Returns  the status item.
          */
-        convenience init?(symbolName: String, @MenuBuilder items: () -> [NSMenuItem]) {
+        @available(macOS 11.0, *)
+        public convenience init?(symbolName: String, @MenuBuilder items: () -> [NSMenuItem]) {
             guard let image = NSImage(systemSymbolName: symbolName) else { return nil }
             self.init()
             button?.image = image
             menu = NSMenu(items: items())
         }
 
-        @available(macOS 11.0, *)
         /**
          Creates a status item with the specified symbol image and action.
 
@@ -161,7 +248,8 @@
 
          - Returns: Returns  the status item.
          */
-        convenience init?(symbolName: String, action: @escaping NSButton.ActionBlock) {
+        @available(macOS 11.0, *)
+        public convenience init?(symbolName: String, action: @escaping ()->()) {
             guard let image = NSImage(systemSymbolName: symbolName) else { return nil }
             self.init()
             button?.image = image

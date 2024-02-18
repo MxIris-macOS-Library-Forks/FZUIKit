@@ -37,6 +37,12 @@ import UniformTypeIdentifiers
                 return nil
             }
         }
+        
+        /// Returns the image types supported by `NSImage`.
+        @available(macOS 11.0, *)
+        static var imageContentTypes: [UTType] {
+            imageTypes.compactMap({UTType($0)})
+        }
 
         var cgImage: CGImage? {
             if let image = self.cgImage(forProposedRect: nil, context: nil, hints: nil) {
@@ -177,30 +183,30 @@ import UniformTypeIdentifiers
         /**
          Returns a data object that contains the specified image in TIFF format.
 
-         - Returns: A data object containing the TIFF data, or nil if there was a problem generating the data. This function may return nil if the image has no data or if the underlying CGImageRef contains data in an unsupported bitmap format.
+         - Returns: A data object containing the TIFF data, or `nil` if there was a problem generating the data. This function may return `nil` if the image has no data or if the underlying CGImageRef contains data in an unsupported bitmap format.
          */
         func tiffData() -> Data? { tiffRepresentation }
 
         /**
          Returns a data object that contains the specified image in PNG format.
 
-         - Returns: A data object containing the PNG data, or nil if there was a problem generating the data. This function may return nil if the image has no data or if the underlying CGImageRef contains data in an unsupported bitmap format.
+         - Returns: A data object containing the PNG data, or `nil` if there was a problem generating the data. This function may return `nil` if the image has no data or if the underlying CGImageRef contains data in an unsupported bitmap format.
          */
         func pngData() -> Data? { bitmapImageRep?.pngData }
 
         /**
          Returns a data object that contains the image in JPEG format.
 
-         - Returns: A data object containing the JPEG data, or nil if there’s a problem generating the data. This function may return nil if the image has no data or if the underlying `CGImageRef` contains data in an unsupported bitmap format.
+         - Returns: A data object containing the JPEG data, or `nil` if there’s a problem generating the data. This function may return `nil` if the image has no data or if the underlying `CGImageRef` contains data in an unsupported bitmap format.
          */
         func jpegData() -> Data? { bitmapImageRep?.jpegData }
 
         /**
          Returns a data object that contains the image in JPEG format.
 
-         - Parameter compressionFactor:  The quality of the resulting JPEG image, expressed as a value from 0.0 to 1.0. The value 0.0 represents the maximum compression (or lowest quality) while the value 1.0 represents the least compression (or best quality).
+         - Parameter compressionFactor: The quality of the resulting JPEG image, expressed as a value from `0.0` to `1.0`. The value `0.0` represents the maximum compression (or lowest quality) while the value `1.0` represents the least compression (or best quality).
 
-         - Returns: A data object containing the JPEG data, or nil if there’s a problem generating the data. This function may return nil if the image has no data or if the underlying `CGImageRef` contains data in an unsupported bitmap format.
+         - Returns: A data object containing the JPEG data, or `nil` if there’s a problem generating the data. This function may return `nil` if the image has no data or if the underlying `CGImageRef` contains data in an unsupported bitmap format.
          */
         func jpegData(compressionFactor factor: Double) -> Data? {
             bitmapImageRep?.jpegData(compressionFactor: factor)

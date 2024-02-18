@@ -12,6 +12,7 @@
         import UIKit
     #endif
     import SwiftUI
+    import FZSwiftUtils
 
     @available(macOS 11.0, iOS 13.0, *)
     public extension NSUIHostingController {
@@ -28,7 +29,7 @@
             self.init(rootView: rootView)
 
             if ignoreSafeArea {
-                disableSafeAreaInsets(true)
+                isSafeAreaInsetsDisabled = true
             }
         }
 
@@ -46,7 +47,7 @@
             self.init(rootView: rootView)
 
             if ignoreSafeArea {
-                disableSafeAreaInsets(true)
+                isSafeAreaInsetsDisabled = true
             }
 
             if isTransparent {
@@ -54,40 +55,28 @@
                 view.backgroundColor = .clear
             }
         }
-
-        /**
-         Disables the safe area insets of the view.
-
-         - Parameter disable: A Boolean value that indicates whether the view should ignore save area insets.
-         */
-        func disableSafeAreaInsets(_ disable: Bool) {
-            setSafeAreaInsets((disable == true) ? .zero : nil)
+        
+        /// A Boolean value that indicates whether the view should ignore save area insets.
+        var isSafeAreaInsetsDisabled: Bool {
+            get { view.isMethodReplaced(#selector(getter: NSUIView.safeAreaInsets)) }
+            set { setSafeAreaInsets((newValue == true) ? .zero : nil) }
         }
 
         internal func setSafeAreaInsets(_ newSafeAreaInsets: NSUIEdgeInsets?) {
-            guard let viewClass = object_getClass(view) else { return }
-
-            let viewSubclassName = String(cString: class_getName(viewClass)).appending("_IgnoreSafeArea")
-            if let viewSubclass = NSClassFromString(viewSubclassName) {
-                object_setClass(view, viewSubclass)
-            } else {
-                guard let viewClassNameUtf8 = (viewSubclassName as NSString).utf8String else { return }
-                guard let viewSubclass = objc_allocateClassPair(viewClass, viewClassNameUtf8, 0) else { return }
-
-                if let method = class_getInstanceMethod(NSUIView.self, #selector(getter: NSUIView.safeAreaInsets)) {
-                    let safeAreaInsets: @convention(block) (AnyObject) -> NSUIEdgeInsets = { _ in
-                        newSafeAreaInsets ?? .zero
-                    }
-
-                    if newSafeAreaInsets != nil {
-                        class_addMethod(viewSubclass, #selector(getter: NSUIView.safeAreaInsets), imp_implementationWithBlock(safeAreaInsets), method_getTypeEncoding(method))
-                    } else {
-                        class_replaceMethod(viewSubclass, #selector(getter: NSUIView.safeAreaInsets), method_getImplementation(method), method_getTypeEncoding(method))
-                    }
+            view.resetMethod(#selector(getter: NSUIView.safeAreaInsets))
+            if let newSafeAreaInsets = newSafeAreaInsets {
+                do {
+                    try view.replaceMethod(
+                        #selector(getter: NSUIView.safeAreaInsets),
+                        methodSignature: (@convention(c)  (AnyObject, Selector) -> (NSUIEdgeInsets)).self,
+                        hookSignature: (@convention(block)  (AnyObject) -> (NSUIEdgeInsets)).self) { store in {
+                           object in
+                           return newSafeAreaInsets
+                        }
+                   }
+                } catch {
+                // handle error
                 }
-
-                objc_registerClassPair(viewSubclass)
-                object_setClass(view, viewSubclass)
             }
         }
     }

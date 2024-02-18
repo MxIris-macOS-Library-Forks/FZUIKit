@@ -41,32 +41,19 @@ public extension NSUIColor {
 
      It is useful when you need to know whether you should display the text in black or white.
      */
-    func isLight() -> Bool {
+    var isLight: Bool {
         let components = rgbaComponents()
         let brightness = ((components.red * 299.0) + (components.green * 587.0) + (components.blue * 114.0)) / 1000.0
 
         return brightness >= 0.5
     }
 
-    /// A Boolean value that indicates whether the color is visible (`alphaComponent` isn't `zero`).
+    /// A Boolean value that indicates whether the color is visible (`alphaComponent` isn't `0`).
     var isVisible: Bool {
         alphaComponent != 0.0
     }
 
-    #if os(macOS)
-        /**
-         Generates the resolved color for the specified view,.
-
-         It uses the view's `effectiveAppearance` for resolving the color.
-
-         - Parameter view: The view for the resolved color.
-         - Returns: A resolved color for the view.
-         */
-        func resolvedColor(for view: NSUIView) -> NSUIColor {
-            resolvedColor(for: view.effectiveAppearance)
-        }
-
-    #elseif os(iOS) || os(tvOS)
+    #if os(iOS) || os(tvOS)
         /**
          Generates the resolved color for the specified view,.
 

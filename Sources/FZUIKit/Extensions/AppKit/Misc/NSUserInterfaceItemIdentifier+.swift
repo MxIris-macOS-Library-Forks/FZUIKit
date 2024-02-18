@@ -6,7 +6,6 @@
 //
 
 #if os(macOS)
-
     import AppKit
 
     extension NSUserInterfaceItemIdentifier: ExpressibleByStringLiteral, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
@@ -26,5 +25,4 @@
             self.init(String(describing: anyClass))
         }
     }
-
 #endif

@@ -11,6 +11,83 @@
     import FZSwiftUtils
 
     public extension NSTextField {
+        /// Deselects all text.
+        func deselectAll() {
+            currentEditor()?.selectedRange = NSRange(location: 0, length: 0)
+        }
+        
+        /// Selects all text.
+        func selectAll() {
+            select(stringValue)
+        }
+        
+        /// Selects the specified string.
+        func select(_ string: String) {
+            let range = (stringValue as NSString).range(of: string)
+            guard range != .notFound else { return }
+            currentEditor()?.selectedRange = range
+        }
+        
+        /// Selects the specified range.
+        func select(_ range: Range<String.Index>) {
+            let range = NSRange(range, in: stringValue)
+            guard range != .notFound else { return }
+            currentEditor()?.selectedRange = range
+        }
+        
+        /// Selects the specified range.
+        func select(_ range: ClosedRange<String.Index>) {
+            let range = NSRange(range, in: stringValue)
+            guard range != .notFound else { return }
+            currentEditor()?.selectedRange = range
+        }
+        
+        /// The location of the cursor while editing.
+        var editingCursorLocation: Int? {
+            let currentEditor = currentEditor() as? NSTextView
+            return currentEditor?.selectedRanges.first?.rangeValue.location
+        }
+        
+        /// The range of the selected text while editing.
+        var editingSelectedRange: Range<String.Index>? {
+            get {
+                let currentEditor = self.currentEditor() as? NSTextView
+                return currentEditor?.selectedStringRanges.first
+            }
+            set {
+                if let range = newValue {
+                    let currentEditor = self.currentEditor() as? NSTextView
+                    currentEditor?.selectedStringRanges = [range]
+                }
+            }
+        }
+        
+        /// The focus type of the text field.
+        var focusType: NSTextFieldCell.FocusType {
+            get { (cell as? NSTextFieldCell)?.focusType ?? .default }
+            set { (cell as? NSTextFieldCell)?.focusType = newValue }
+        }
+        
+        /// The vertical alignment of the displayed text inside the text field.
+        var verticalTextAlignment: NSTextFieldCell.VerticalAlignment {
+            get { (cell as? NSTextFieldCell)?.verticalAlignment ?? .default }
+            set { (cell as? NSTextFieldCell)?.verticalAlignment = newValue }
+        }
+        
+        /*
+        /// The leading padding of the text cell.
+        var leadingTextPadding: CGFloat {
+            get { (cell as? NSTextFieldCell)?.leadingPadding ?? 0.0 }
+            set { (cell as? NSTextFieldCell)?.leadingPadding = newValue }
+        }
+        
+        /// The trailing padding of the text cell.
+        var trailingTextPadding: CGFloat {
+            get { (cell as? NSTextFieldCell)?.trailingPadding ?? 0.0 }
+            set { (cell as? NSTextFieldCell)?.trailingPadding = newValue }
+        }
+        */
+        
         /// The y-coordinate of the baseline for the topmost line of the text.
         var firstBaselineY: CGFloat? {
             guard let font = font else { return nil }

@@ -36,13 +36,13 @@
             set {
                 let oldValue = self.configuration
                 set(associatedValue: newValue, key: "NSButton_Configuration", object: self)
-                if newValue is NSButton.AdvanceConfiguration == false {
-                    AdvanceConfigurationButtonView?.removeFromSuperview()
-                    AdvanceConfigurationButtonView = nil
+                if newValue is NSButton.AdvanceButtonConfiguration == false {
+                    contentView?.removeFromSuperview()
+                    contentView = nil
                 }
                 guard newValue != nil else { return }
 
-                if let oldValue = oldValue as? NSButton.AdvanceConfiguration, let newValue = newValue as? NSButton.AdvanceConfiguration, newValue == oldValue {
+                if let oldValue = oldValue as? NSButton.AdvanceButtonConfiguration, let newValue = newValue as? NSButton.AdvanceButtonConfiguration, newValue == oldValue {
                     return
                 } else if let oldValue = oldValue as? NSButton.Configuration, let newValue = newValue as? NSButton.Configuration, newValue == oldValue {
                     return
@@ -95,41 +95,27 @@
                      keyValueObserver?.add([\.title, \.alternateTitle, \.attributedTitle, \.attributedAlternateTitle, \.image, \.alternateImage], handler: <#T##((PartialKeyPath<NSButton>) -> ())##((PartialKeyPath<NSButton>) -> ())##(_ keyPath: PartialKeyPath<NSButton>) -> ()#>)
                      */
                 }
-
-                if observerView == nil {
-                    let observerView = ObserverView(frame: .zero)
-                    observerView.mouseHandlers.exited = { [weak self] _ in
-                        guard let self = self else { return true }
+                if mouseHandlers.exited == nil {
+                    mouseHandlers.exited = { [weak self] _ in
+                        guard let self = self else { return }
                         self.isHovered = false
-                        return true
                     }
-
-                    observerView.mouseHandlers.moved = { [weak self] _ in
-                        guard let self = self else { return true }
+                    mouseHandlers.moved = { [weak self] _ in
+                        guard let self = self else { return }
                         self.isHovered = true
-                        return true
                     }
-
-                    observerView.mouseHandlers.dragged = { [weak self] _ in
-                        guard let self = self else { return true }
+                    mouseHandlers.dragged = { [weak self] _ in
+                        guard let self = self else { return }
                         self.isHovered = true
-                        return true
                     }
-
-                    observerView.mouseHandlers.entered = { [weak self] _ in
-                        guard let self = self else { return true }
+                    mouseHandlers.entered = { [weak self] _ in
+                        guard let self = self else { return }
                         self.isHovered = true
-                        return true
                     }
-
-                    self.observerView = observerView
-                    addSubview(withConstraint: observerView)
-                    observerView.sendToBack()
                 }
             } else {
                 keyValueObserver = nil
-                observerView?.removeFromSuperview()
-                observerView = nil
+                mouseHandlers = .init()
             }
         }
 
@@ -184,7 +170,7 @@
                 contentTintColor = configuration._resolvedContentTintColor
                 sound = configuration.sound
                 sizeToFit()
-            } else if var configuration = configuration as? NSButton.AdvanceConfiguration {
+            } else if var configuration = configuration as? NSButton.AdvanceButtonConfiguration {
                 bezelStyle = .rounded
                 isBordered = false
                 title = ""
@@ -197,14 +183,14 @@
                     configuration = configuration.updated(for: configurationState)
                 }
 
-                if let AdvanceConfigurationButtonView = AdvanceConfigurationButtonView {
-                    AdvanceConfigurationButtonView.configuration = configuration
+                if let contentView = contentView {
+                    contentView.configuration = configuration
                 } else {
-                    let buttonView = NSButton.AdvanceConfiguration.ButtonView(configuration: configuration)
-                    AdvanceConfigurationButtonView = buttonView
+                    let buttonView = NSButton.AdvanceButtonView(configuration: configuration)
+                    contentView = buttonView
                     addSubview(withConstraint: buttonView)
                 }
-                frame.size = AdvanceConfigurationButtonView?.fittingSize ?? .zero
+                frame.size = contentView?.fittingSize ?? .zero
             }
             configurationUpdateHandler?(configurationState)
         }
@@ -230,29 +216,13 @@
          */
         public typealias ConfigurationUpdateHandler = (_ state: ConfigurationState) -> Void
 
-        var AdvanceConfigurationButtonView: NSButton.AdvanceConfiguration.ButtonView? {
-            get { getAssociatedValue(key: "NSButton_AdvanceConfigurationButtonView", object: self, initialValue: nil) }
-            set {
-                set(associatedValue: newValue, key: "NSButton_AdvanceConfigurationButtonView", object: self)
-            }
-        }
-
-        var observerView: ObserverView? {
-            get { getAssociatedValue(key: "NSButton_observerView", object: self, initialValue: nil) }
-            set {
-                set(associatedValue: newValue, key: "NSButton_observerView", object: self)
-            }
+        var contentView: NSButton.AdvanceButtonView? {
+            get { getAssociatedValue(key: "NSButton_contentView", object: self, initialValue: nil) }
+            set { set(associatedValue: newValue, key: "NSButton_contentView", object: self) }
         }
 
         var isPressed: Bool {
-            get { getAssociatedValue(key: "isPressed", object: self, initialValue: false) }
-            set {
-                guard newValue != self.isPressed else { return }
-                set(associatedValue: newValue, key: "isPressed", object: self)
-                if automaticallyUpdatesConfiguration {
-                    updateConfiguration()
-                }
-            }
+            contentView?.isPressed ?? false
         }
 
         func sendAction() {

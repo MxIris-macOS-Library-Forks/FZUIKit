@@ -12,12 +12,14 @@
     import SwiftUI
 
     @available(macOS 13.0, *)
-    extension NSButton.AdvanceConfiguration.ButtonView {
+    extension NSButton.AdvanceButtonView {
         struct ContentView: View {
-            let configuration: NSButton.AdvanceConfiguration
+            let configuration: NSButton.AdvanceButtonConfiguration
+            let showBorder: Bool
 
-            public init(configuration: NSButton.AdvanceConfiguration) {
+            public init(configuration: NSButton.AdvanceButtonConfiguration, showBorder: Bool) {
                 self.configuration = configuration
+                self.showBorder = showBorder
             }
 
             var titleFont: Font {
@@ -45,9 +47,11 @@
                 VStack(alignment: configuration._resolvedTitleAlignment.alignment, spacing: configuration.titlePadding) {
                     titleItem
                         .font(titleFont)
+                        .multilineTextAlignment(configuration._resolvedTextAlignment)
                         .foregroundColor(configuration._resolvedForegroundColor?.swiftUI)
                     subtitleItem
                         .font(subtitleFont)
+                        .multilineTextAlignment(configuration._resolvedTextAlignment)
                         .foregroundColor(configuration._resolvedForegroundColor?.swiftUI)
                 }
             }
@@ -111,51 +115,102 @@
                     .scaleEffect(configuration.scaleTransform)
                     .background(configuration._resolvedBackgroundColor?.swiftUI)
                     .clipShape(configuration.cornerStyle.shape)
-                    .overlay(configuration.cornerStyle.shape.stroke(lineWidth: configuration.borderWidth).foregroundColor(configuration._resolvedForegroundColor?.swiftUI))
+                    .overlay(configuration.cornerStyle.shape.stroke(lineWidth: showBorder ? configuration.borderWidth : 0.0).foregroundColor(configuration._resolvedForegroundColor?.swiftUI))
                     .opacity(configuration.opacity)
             }
         }
     }
 
     @available(macOS 13, *)
-    extension NSButton.AdvanceConfiguration {
-        class ButtonView: NSView {
+    extension NSButton {
+        public class AdvanceButtonView: NSView, NSContentView {
+            
+            lazy var trackingArea = TrackingArea(for: self, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect])
+            
+            var showsBorderOnlyWhileMouseInside: Bool {
+                appliedConfiguration.borderWidth > 0.0 && appliedConfiguration.showsBorderOnlyWhileMouseInside
+            }
+            
+            var showBorder: Bool = false
+            
+            public override func updateTrackingAreas() {
+                super.updateTrackingAreas()
+                trackingArea.update()
+            }
+            
+            public var configuration: NSContentConfiguration {
+                get { appliedConfiguration }
+                set { 
+                    guard let configuration = newValue as? NSButton.AdvanceButtonConfiguration else { return }
+                    appliedConfiguration = configuration
+                }
+            }
+            
+            /// The handler that is called when the button is pressed.
+            public var action: (()->())? = nil
+            
             /// The current configuration of the view.
-            public var configuration: NSButton.AdvanceConfiguration {
+            var appliedConfiguration: NSButton.AdvanceButtonConfiguration {
                 didSet {
-                    if oldValue != configuration {
+                    if oldValue != appliedConfiguration {
                         updateConfiguration()
                     }
                 }
+            }
+            
+            public override func mouseEntered(with event: NSEvent) {
+                showBorder = true
+                if showsBorderOnlyWhileMouseInside {
+                    updateConfiguration()
+                }
+                super.mouseEntered(with: event)
+            }
+            
+            public override func mouseExited(with event: NSEvent) {
+                showBorder = false
+                if showsBorderOnlyWhileMouseInside {
+                    updateConfiguration()
+                }
+                super.mouseExited(with: event)
             }
 
             var button: NSButton? {
                 superview as? NSButton
             }
 
-            override func mouseDown(with _: NSEvent) {
-                button?.isPressed = true
+            var isPressed: Bool = false
+            public override func mouseDown(with _: NSEvent) {
+                isPressed = true
+                if button?.automaticallyUpdatesConfiguration == true {
+                    button?.updateConfiguration()
+                }
             }
 
-            override func mouseUp(with event: NSEvent) {
-                button?.isPressed = false
+            public override func mouseUp(with event: NSEvent) {
+                isPressed = false
+                if button?.automaticallyUpdatesConfiguration == true {
+                    button?.updateConfiguration()
+                }
+                
                 if frame.contains(event.location(in: self)) {
                     button?.sendAction()
+                    action?()
                 }
             }
 
             /// Creates a item content view with the specified content configuration.
-            public init(configuration: NSButton.AdvanceConfiguration) {
-                self.configuration = configuration
+            public init(configuration: NSButton.AdvanceButtonConfiguration) {
+                self.appliedConfiguration = configuration
                 super.init(frame: .zero)
                 hostingViewConstraints = addSubview(withConstraint: hostingController.view)
+                updateTrackingAreas()
                 updateConfiguration()
             }
 
             var hostingViewConstraints: [NSLayoutConstraint] = []
 
             func updateConfiguration() {
-                hostingController.rootView = ContentView(configuration: configuration)
+                hostingController.rootView = ContentView(configuration: appliedConfiguration, showBorder: showBorder)
                 sizeToFit()
             }
 
@@ -175,7 +230,7 @@
             }
 
             lazy var hostingController: NSHostingController<ContentView> = {
-                let contentView = ContentView(configuration: self.configuration)
+                let contentView = ContentView(configuration: self.appliedConfiguration, showBorder: showBorder)
                 let hostingController = NSHostingController(rootView: contentView)
                 hostingController.view.backgroundColor = .clear
                 hostingController.view.translatesAutoresizingMaskIntoConstraints = false

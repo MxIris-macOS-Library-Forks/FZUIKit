@@ -355,8 +355,8 @@
             return imageView
         }()
 
-        lazy var videoView: NoKeyDownPlayerView = {
-            let videoView = NoKeyDownPlayerView()
+        lazy var videoView: NoMenuPlayerView = {
+            let videoView = NoMenuPlayerView()
             videoView.isHidden = true
             videoView.videoGravity = AVLayerVideoGravity(caLayerContentsGravity: self.contentScaling) ?? .resizeAspectFill
             return videoView
@@ -523,59 +523,132 @@
         public var handlers: Handlers = .init()
     }
 
+class NoMenuPlayerView: AVPlayerView {
+    public override var acceptsFirstResponder: Bool {
+        false
+    }
+    
+    public override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        false
+    }
+    
+    public override var menu: NSMenu? {
+        get {
+            Swift.print("video menu")
+            return nil
+        }
+        set { 
+            
+        }
+    }
+    
+    public override func rightMouseDown(with event: NSEvent) {
+        Swift.print("video rightMouseDown")
+        super.rightMouseDown(with: event)
+    }
+    
+    public override func rightMouseUp(with event: NSEvent) {
+        Swift.print("video rightMouseUp")
+        super.rightMouseUp(with: event)
+    }
+    
+    public override func mouseDown(with event: NSEvent) {
+        Swift.print("video mouseDown")
+        super.mouseDown(with: event)
+    }
+    
+    public override func mouseUp(with event: NSEvent) {
+        Swift.print("video mouseUp")
+        super.mouseUp(with: event)
+    }
+    
+}
+
+extension AVPlayerView {
+    /**
+     A view for hosting layered content on top of the image view.
+
+     Use this view to host content that you want layered on top of the image view. This view is managed by the image view itself and is automatically sized to fill the image view’s frame rectangle. Add your subviews and use layout constraints to position them within the view.
+
+     The view in this property clips its subviews to its bounds rectangle by default, but you can change that behavior using the `initclipsToBounds` property.
+     */
+    public var overlayContentView: NSView {
+        if let view: NSView = getAssociatedValue(key: "overlayContentView", object: self) {
+            return view
+        }
+        let overlayView = NSView()
+        addSubview(overlayView)
+        resizeOverlayView(overlayView)
+        set(associatedValue: overlayView, key: "overlayContentView", object: self)
+        observePlayerView()
+        return overlayView
+    }
+    
+    /// A Boolean value that indicates whether the overlay content view is resized to the video size.
+    public var resizeOverlayContentViewToVideoSize: Bool {
+        get { getAssociatedValue(key: "resizeOverlayContentView", object: self, initialValue: true) }
+        set { set(associatedValue: newValue, key: "resizeOverlayContentView", object: self) }
+    }
+    
+    func observePlayerView() {
+        guard isObservingPlayerView == false else { return }
+        isObservingPlayerView = true
+        playerViewObserver = .init(self)
+        playerViewObserver?.add(\.videoGravity) { [weak self] _, videoGravity in
+            guard let self = self else { return }
+            self.resizeOverlayView(self.overlayContentView)
+        }
+        playerViewObserver?.add(\.player?.currentItem) { [weak self] _, currentItem in
+            guard let self = self else { return }
+            self.resizeOverlayView(self.overlayContentView)
+        }
+        playerViewObserver?.add(\.bounds) { [weak self] _, bounds in
+            guard let self = self else { return }
+            self.resizeOverlayView(self.overlayContentView)
+        }
+    }
+    
+    func resizeOverlayView(_ overlayContentView: NSView) {
+        guard resizeOverlayContentViewToVideoSize, let videoSize = player?.currentItem?.asset.videoNaturalSize else {
+            overlayContentView.frame = bounds
+            return
+        }
+        
+        switch videoGravity {
+        case .resizeAspect:
+            if videoSize.width >= videoSize.height {
+                overlayContentView.frame.size = videoSize.scaled(toWidth: bounds.width)
+            } else {
+                overlayContentView.frame.size = videoSize.scaled(toHeight: bounds.height)
+            }
+        case .resize, .resizeAspectFill:
+            overlayContentView.frame.size = bounds.size
+        default:
+            overlayContentView.frame.size = videoSize
+        }
+        overlayContentView.center = bounds.center
+    }
+    
+    var isObservingPlayerView: Bool {
+        get { getAssociatedValue(key: "isObservingPlayerView", object: self, initialValue: false) }
+        set { set(associatedValue: newValue, key: "isObservingPlayerView", object: self) }
+    }
+    
+    var playerViewObserver: KeyValueObserver<AVPlayerView>? {
+        get { getAssociatedValue(key: "playerViewObserver", object: self, initialValue: nil) }
+        set { set(associatedValue: newValue, key: "playerViewObserver", object: self) }
+    }
+}
+
     public class NoKeyDownPlayerView: AVPlayerView {
-        public init() {
-            super.init(frame: .zero)
-            addSubview(overlayContentView)
+        var _menu: NSMenu? = nil
+        public override var menu: NSMenu? {
+            get { _menu }
+            set { _menu = newValue }
         }
-
-        override public init(frame frameRect: NSRect) {
-            super.init(frame: frameRect)
-            addSubview(overlayContentView)
-        }
-
-        public required init?(coder: NSCoder) {
-            super.init(coder: coder)
-            addSubview(overlayContentView)
-        }
-
-        /**
-         A view for hosting layered content on top of the image view.
-
-         Use this view to host content that you want layered on top of the image view. This view is managed by the image view itself and is automatically sized to fill the image view’s frame rectangle. Add your subviews and use layout constraints to position them within the view.
-
-         The view in this property clips its subviews to its bounds rectangle by default, but you can change that behavior using the `initclipsToBounds` property.
-         */
-        public let overlayContentView = NSView()
-
-        override public var videoGravity: AVLayerVideoGravity {
-            didSet {
-                guard oldValue != videoGravity else { return }
-                resizeOverlayView()
-            }
-        }
-
-        override public func layout() {
-            super.layout()
-            resizeOverlayView()
-        }
-
-        func resizeOverlayView() {
-            if let videoSize = player?.currentItem?.asset.videoNaturalSize {
-                switch videoGravity {
-                case .resizeAspect:
-                    if videoSize.width >= videoSize.height {
-                        overlayContentView.frame.size = videoSize.scaled(toWidth: bounds.width)
-                    } else {
-                        overlayContentView.frame.size = videoSize.scaled(toHeight: bounds.height)
-                    }
-                case .resize, .resizeAspectFill:
-                    overlayContentView.frame.size = bounds.size
-                default:
-                    overlayContentView.frame.size = videoSize
-                }
-            }
-            overlayContentView.center = bounds.center
+        
+        public override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+            !ignoreMouseDown
         }
 
         /// A Boolean value that indicates whether to ignore `keyDown` events.

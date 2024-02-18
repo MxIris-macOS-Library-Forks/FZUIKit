@@ -12,8 +12,9 @@
 
     @available(macOS 13.0, *)
     public extension NSButton {
+        
         /// A configuration that specifies the appearance and behavior of a button and its contents.
-        struct AdvanceConfiguration: NSButtonConfiguration, Hashable {
+        struct AdvanceButtonConfiguration: NSButtonConfiguration, Hashable, NSContentConfiguration {
             /**
              Specifies how to align a button’s title and subtitle.
 
@@ -28,6 +29,7 @@
                 case leading
                 /// Aligns the title and subtitle on their trailing edges.
                 case trailing
+                
                 var alignment: HorizontalAlignment {
                     switch self {
                     case .automatic: return .center
@@ -39,32 +41,35 @@
             }
 
             /**
-             Settings that determine the appearance of the background corner radius.
+             Settings that determine the appearance of the button.
 
-             Use this property to control how the button uses the `cornerRadius` property of the button’s background`.
+             Use this property to control how the button uses the `cornerRadius`.
              */
             public enum CornerStyle: Hashable {
-                /// A style that adjusts the background corner radius for dynamic type.
-                case dynamic
-                /// A style that uses the background corner radius without modification.
-                case fixed
-                /// A style that ignores the background corner radius and uses a corner radius that generates a capsule.
-                case capsule
-                /// A style that ignores the background corner radius and uses a large system-defined corner radius.
+                /// A shape that uses a large system-defined corner radius.
                 case large
-                /// A style that ignores the background corner radius and uses a medium system-defined corner radius.
+                /// A shape that uses a medium system-defined corner radius.
                 case medium
-                /// A style that ignores the background corner radius and uses a small system-defined corner radius.
+                /// A shape that uses a small system-defined corner radius.
                 case small
+                /// A shape that uses the specified corner radius.
+                case cornerRadius(CGFloat)
+                /// A shape that uses a corner radius that generates a capsule.
+                case capsule
+                /// A rectangle button shape
+                case rectangle
+                /// A circular button shape.
+                case circular
 
                 var shape: some Shape {
                     switch self {
-                    case .dynamic: return Rectangle().asAnyShape()
-                    case .fixed: return Rectangle().asAnyShape()
                     case .capsule: return Capsule().asAnyShape()
                     case .large: return RoundedRectangle(cornerRadius: 10.0).asAnyShape()
                     case .medium: return RoundedRectangle(cornerRadius: 6.0).asAnyShape()
                     case .small: return RoundedRectangle(cornerRadius: 2.0).asAnyShape()
+                    case .cornerRadius(let radius): return RoundedRectangle(cornerRadius: radius).asAnyShape()
+                    case .circular: return Circle().asAnyShape()
+                    case .rectangle: return Rectangle().asAnyShape()
                     }
                 }
             }
@@ -98,7 +103,11 @@
 
             /// The width of the stroke.
             public var borderWidth: CGFloat = 0.0
+            
+            /// A Boolean value that determines whether the button displays its border only when the pointer is over it.
+            public var showsBorderOnlyWhileMouseInside: Bool = false
 
+            /*
             /// The outset (or inset, if negative) for the stroke.
             public var borderOutset: CGFloat = 0.0
 
@@ -123,6 +132,7 @@
                 }
                 return nil
             }
+             */
 
             /// The untransformed color for foreground views.
             public var foregroundColor: NSColor? { didSet {
@@ -204,9 +214,11 @@
                         imageSymbolConfiguration: ImageSymbolConfiguration? = nil,
                         sound: NSSound? = nil,
                         borderWidth: CGFloat = 0.0,
+                        /*
                         borderOutset: CGFloat = 0.0,
                         borderColor: NSColor? = nil,
                         borderColorTransformer: ColorTransformer? = nil,
+                         */
                         foregroundColor: NSColor? = nil,
                         backgroundColor: NSColor? = nil,
                         titlePadding: CGFloat = 2.0,
@@ -229,9 +241,11 @@
                 self.imageSymbolConfiguration = imageSymbolConfiguration
                 self.sound = sound
                 self.borderWidth = borderWidth
+                /*
                 self.borderOutset = borderOutset
                 self.borderColor = borderColor
                 self.borderColorTransformer = borderColorTransformer
+                 */
                 self.foregroundColor = foregroundColor
                 self.backgroundColor = backgroundColor
                 self.titlePadding = titlePadding
@@ -245,66 +259,91 @@
             }
 
             ///  Creates a configuration for a button with a transparent background.
-            public static func plain(color: NSColor = .controlAccentColor) -> NSButton.AdvanceConfiguration {
-                var configuration = NSButton.AdvanceConfiguration()
+            public static func plain(color: NSColor = .controlAccentColor) -> NSButton.AdvanceButtonConfiguration {
+                var configuration = NSButton.AdvanceButtonConfiguration()
                 configuration.foregroundColor = color
                 return configuration
             }
 
             /// Creates a configuration for a button with a gray background.
-            public static func gray() -> NSButton.AdvanceConfiguration {
-                var configuration = NSButton.AdvanceConfiguration()
+            public static func gray() -> NSButton.AdvanceButtonConfiguration {
+                var configuration = NSButton.AdvanceButtonConfiguration()
                 configuration.backgroundColor = .gray.withAlphaComponent(0.5)
                 configuration.foregroundColor = .controlAccentColor
                 return configuration
             }
 
             /// Creates a configuration for a button with a tinted background color.
-            public static func tinted(color: NSColor = .controlAccentColor) -> NSButton.AdvanceConfiguration {
-                var configuration = NSButton.AdvanceConfiguration()
+            public static func tinted(color: NSColor = .controlAccentColor) -> NSButton.AdvanceButtonConfiguration {
+                var configuration = NSButton.AdvanceButtonConfiguration()
                 configuration.backgroundColor = color.tinted().withAlphaComponent(0.5)
                 configuration.foregroundColor = color
                 return configuration
             }
 
             /// Creates a configuration for a button with a background filled with the button’s tint color.
-            public static func filled(color: NSColor = .controlAccentColor) -> NSButton.AdvanceConfiguration {
-                var configuration = NSButton.AdvanceConfiguration()
+            public static func filled(color: NSColor = .controlAccentColor) -> NSButton.AdvanceButtonConfiguration {
+                var configuration = NSButton.AdvanceButtonConfiguration()
                 configuration.foregroundColor = .white
                 configuration.backgroundColor = color
                 return configuration
             }
 
             /// Creates a configuration for a button that has a bordered style.
-            public static func bordered(color: NSColor = .controlAccentColor) -> NSButton.AdvanceConfiguration {
-                var configuration = NSButton.AdvanceConfiguration()
+            public static func bordered(color: NSColor = .controlAccentColor) -> NSButton.AdvanceButtonConfiguration {
+                var configuration = NSButton.AdvanceButtonConfiguration()
                 configuration.foregroundColor = color
                 configuration.borderWidth = 1.0
                 return configuration
             }
 
             var _resolvedTitleAlignment: TitleAlignment = .automatic
-            var _resolvedBorderColor: NSColor?
+            var _resolvedTextAlignment: SwiftUI.TextAlignment = .center
+
+        //    var _resolvedBorderColor: NSColor?
             var _resolvedForegroundColor: NSColor?
             var _resolvedBackgroundColor: NSColor?
+            
+            var hasTitle: Bool {
+                title != nil || attributedTitle != nil
+            }
+            
+            var hasSubtitle: Bool {
+                subtitle != nil || attributedSubtitle != nil
+            }
 
             mutating func updateResolvedValues() {
                 _resolvedTitleAlignment = resolvedTitleAlignment()
-                _resolvedBorderColor = resolvedBorderColor()
+                switch _resolvedTitleAlignment.alignment {
+                case .leading:
+                    _resolvedTextAlignment = .leading
+                case .trailing:
+                    _resolvedTextAlignment = .trailing
+                default:
+                    _resolvedTextAlignment = .center
+                }
+             //   _resolvedBorderColor = resolvedBorderColor()
                 _resolvedForegroundColor = resolvedForegroundColor()
                 _resolvedBackgroundColor = resolvedBackgroundColor()
 
-                if let colorConfiguration = imageSymbolConfiguration?.color {
+                if let colorConfiguration = imageSymbolConfiguration?.color, var configuration = imageSymbolConfiguration {
                     switch colorConfiguration {
                     case let .palette(primary, secondary, ter):
-                        imageSymbolConfiguration?.color = .palette(foregroundColor ?? primary, secondary, ter)
+                        configuration.color = .palette(foregroundColor ?? primary, secondary, ter)
+                        imageSymbolConfiguration = configuration
                     case .monochrome: return
                     case let .multicolor(color):
-                        imageSymbolConfiguration?.color = .multicolor(foregroundColor ?? color)
+                        configuration.color = .multicolor(foregroundColor ?? color)
+                        imageSymbolConfiguration = configuration
                     case let .hierarchical(color):
-                        imageSymbolConfiguration?.color = .hierarchical(foregroundColor ?? color)
+                        configuration.color = .hierarchical(foregroundColor ?? color)
+                        imageSymbolConfiguration = configuration
                     }
                 }
+            }
+            
+            public func makeContentView() -> NSView & NSContentView {
+                AdvanceButtonView(configuration: self)
             }
 
             /**
@@ -334,24 +373,28 @@
                     if let transformer = configuration.backgroundColorTransformer {
                         configuration.backgroundColorTransformer = transformer + .systemEffect(.pressed)
                     } else {
-                        configuration.backgroundColorTransformer = .systemEffect(.pressed)
+                        if configuration.backgroundColor == nil {
+                            configuration.backgroundColor = configuration.foregroundColor?.withAlphaComponent(0.175)
+                        } else {
+                            configuration.backgroundColorTransformer = .systemEffect(.pressed)
+                        }
                     }
                 }
                 return configuration
             }
+            
+            
 
             func resolvedTitleAlignment() -> TitleAlignment {
                 if titleAlignment == .automatic {
                     if image != nil {
-                        if imagePlacement == .leading {
-                            return .leading
-                        } else if imagePlacement == .trailing {
-                            return .trailing
-                        } else {
-                            return .center
+                        switch imagePlacement {
+                        case .leading: return .leading
+                        case .trailing: return .trailing
+                        default: return .center
                         }
                     }
-                    return .leading
+                    return hasTitle && hasSubtitle ? .leading : .center
                 }
                 return titleAlignment
             }
