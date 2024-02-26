@@ -11,6 +11,19 @@
     import FZSwiftUtils
 
     public extension NSTextField {
+        
+        /// The receiver’s number formatter.
+        var numberFormatter: NumberFormatter? {
+            get { formatter as? NumberFormatter }
+            set {
+                if let newValue = newValue {
+                    formatter = newValue
+                } else if formatter is NumberFormatter {
+                    formatter = nil
+                }
+            }
+        }
+        
         /// Deselects all text.
         func deselectAll() {
             currentEditor()?.selectedRange = NSRange(location: 0, length: 0)

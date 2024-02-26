@@ -91,13 +91,16 @@
                 self != AllowedCharacters.all
             }
 
-            func trimString<S: StringProtocol>(_ string: S) -> String {
-                var string = String(string)
-                if contains(.lowercaseLetters) == false { string = string.trimmingCharacters(in: .lowercaseLetters) }
-                if contains(.uppercaseLetters) == false { string = string.trimmingCharacters(in: .uppercaseLetters) }
-                if contains(.digits) == false { string = string.trimmingCharacters(in: .decimalDigits) }
-                if contains(.symbols) == false { string = string.trimmingCharacters(in: .symbols) }
-                if contains(.newLines) == false { string = string.trimmingCharacters(in: .newlines) }
+            func trimString(_ string: String) -> String {
+                var string = string
+                var characterSet = CharacterSet()
+                if contains(.lowercaseLetters) == false { characterSet += .lowercaseLetters }
+                if contains(.uppercaseLetters) == false { characterSet += .uppercaseLetters }
+                if contains(.digits) == false { characterSet += .decimalDigits }
+                if contains(.symbols) == false { characterSet += .symbols}
+                if contains(.newLines) == false { characterSet += .newlines }
+                if !characterSet.isEmpty { string = string.trimmingCharacters(in: characterSet) }
+                if contains(.whitespaces) == false { string = string.replacingOccurrences(of: " ", with: "") }
                 if contains(.emojis) == false { string = string.trimmingEmojis() }
                 return string
             }
