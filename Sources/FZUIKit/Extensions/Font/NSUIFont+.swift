@@ -104,6 +104,43 @@ public extension NSUIFont {
             return .systemFont(ofSize: NSUIFont.systemFontSize + 17)
         }
     #endif
+    
+    #if os(macOS)
+    /// Returns a new font based on the current font, but with the specified font matrix.
+    func withMatrix(_ matrix: AffineTransform) -> NSUIFont? {
+        NSUIFont(descriptor: fontDescriptor.withMatrix(matrix), size: pointSize)
+    }
+    #else
+    /// Returns a new font based on the current font, but with the specified font matrix.
+    func withMatrix(_ matrix: CGAffineTransform) -> NSUIFont? {
+        NSUIFont(descriptor: fontDescriptor.withMatrix(matrix), size: pointSize)
+    }
+    #endif
+    
+    /// Returns a new font based on the current font, but with the specified design style.
+    func withDesign(_ design: NSUIFontDescriptor.SystemDesign) -> NSUIFont? {
+        guard let fontDescriptor = fontDescriptor.withDesign(design) else { return nil }
+        return NSUIFont(descriptor: fontDescriptor, size: pointSize)
+    }
+    
+    /// Returns a new font based on the current font, but with the specified symbolic traits taking precedence over the existing ones.
+    func withSymbolicTraits(_ symbolTraits: NSUIFontDescriptor.SymbolicTraits) -> NSUIFont? {
+        #if os(macOS)
+        NSUIFont(descriptor: fontDescriptor.withSymbolicTraits(symbolTraits), size: pointSize)
+        #else
+        guard let fontDescriptor = fontDescriptor.withSymbolicTraits(symbolTraits) else { return nil }
+        return NSUIFont(descriptor: fontDescriptor, size: pointSize)
+        #endif
+    }
+    
+    /// Returns a new font based on the current font, but with the specified face.
+    func withFace(_ newFace: String) -> NSUIFont? {
+        #if os(macOS)
+        fontFamily?.members.first(where: {$0.faceName == newFace || $0.localizedFaceName == newFace})?.font(withSize: pointSize)
+        #else
+        return NSUIFont(descriptor: fontDescriptor.withFace(newFace), size: pointSize)
+        #endif
+    }
 }
 
 public extension NSUIFont {

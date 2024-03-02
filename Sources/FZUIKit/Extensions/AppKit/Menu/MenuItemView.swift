@@ -241,15 +241,7 @@ open class MenuItemView: NSView {
        let intrinsicContentSize =  subviews
             .map { $0.intrinsicContentSize }
             .max { $0.width < $1.width } ?? .zero
-    //    Swift.print("intre", intrinsicContentSize)
         return intrinsicContentSize
-    }
-    
-    private lazy var trackingArea = TrackingArea(for: self, options: [.activeInKeyWindow, .mouseEnteredAndExited])
-    
-    open override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        trackingArea.update()
     }
     
     public var isEnabled: Bool {
@@ -260,27 +252,31 @@ open class MenuItemView: NSView {
         }
     }
     
-    public var isHighlighted: Bool {
-        get { enclosingMenuItem?.isHighlighted ?? false }
-    }
+    var isHighlighted: Bool = false {
+        didSet { updateHighlight() } }
     
-    var mouseIsHovering: Bool = false {
-        didSet {
-            guard oldValue != mouseIsHovering else { return }
-            highlightView.isHidden = !isHighlighted || !mouseIsHovering
+    public var showsHighlight: Bool = true {
+        didSet { updateHighlight() } }
+    
+    func updateHighlight() {
+        if showsHighlight, isHighlighted {
+            highlightView.isHidden = false
+        } else {
+            highlightView.isHidden = true
         }
     }
-    
+        
     public override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         
-        let isHighlighted = self.isHighlighted
-        highlightView.isHidden = !isHighlighted || !mouseIsHovering
-        
+        if let menu = enclosingMenuItem?.menu, menu.delegateProxy == nil {
+            menu.delegateProxy = NSMenu.DelegateProxy(menu)
+        }
+           
         guard autoHighlightSubviews else { return }
+        let isHighlighted = enclosingMenuItem?.isHighlighted ?? false
         let isEnabled = self.isEnabled
-        subviews
-            .forEach { highlightIfNeeded($0, isHighlighted: isHighlighted, isEnabled: isEnabled) }
+        subviews.forEach { highlightIfNeeded($0, isHighlighted: isHighlighted, isEnabled: isEnabled) }
     }
     
     /// Add a subview to the menu item and automatically add constraints to
@@ -298,7 +294,7 @@ open class MenuItemView: NSView {
         
         translatesAutoresizingMaskIntoConstraints = false
         view.translatesAutoresizingMaskIntoConstraints = false
-        
+                
         NSLayoutConstraint.activate([
             view.topAnchor.constraint(equalTo: layoutMarginsGuide.topAnchor),
             view.leadingAnchor.constraint(equalTo: layoutMarginsGuide.leadingAnchor),
@@ -358,24 +354,6 @@ open class MenuItemView: NSView {
             .forEach { highlightIfNeeded($0, isHighlighted: isHighlighted, isEnabled: isEnabled) }
     }
     
-    open override func mouseEntered(with event: NSEvent) {
-        if let enclosingMenuItem = enclosingMenuItem {
-            if enclosingMenuItem.menu?.highlightedItem?.tag == enclosingMenuItem.tag {
-                if bounds.contains(event.location(in: self)) {
-                    mouseIsHovering = true
-                }
-            }
-        }
-    }
-    
-    open override func mouseExited(with event: NSEvent) {
-        if let enclosingMenuItem = enclosingMenuItem {
-            if enclosingMenuItem.menu?.highlightedItem?.tag != enclosingMenuItem.tag {
-                mouseIsHovering = false
-            }
-        }
-    }
-    
     private var highlightViewConstraits: [NSLayoutConstraint] = []
     private var innerContentConstraits: [NSLayoutConstraint] = []
 }
@@ -383,7 +361,6 @@ open class MenuItemView: NSView {
 // MARK: - Setup
 private extension MenuItemView {
     func setup() {
-        _ = trackingArea
         setupHighlightView()
         setupLayoutGuide()
     }
