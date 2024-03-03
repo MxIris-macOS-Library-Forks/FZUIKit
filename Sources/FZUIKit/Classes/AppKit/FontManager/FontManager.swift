@@ -24,6 +24,12 @@ public class FontManager: NSObject {
         didSet {
             guard oldValue != fontSize else { return }
             fontSize = fontSize.clamped(min: 0.5)
+            if let minFontSize = minFontSize {
+                fontSize = fontSize.clamped(min: minFontSize)
+            }
+            if let maxFontSize = maxFontSize {
+                fontSize = fontSize.clamped(max: maxFontSize)
+            }
             fontSizeStepper?.doubleValue = fontSize
             fontSizeTextField?.doubleValue = fontSize
             if let index = fontSizePopUpButton?.items.firstIndex(where: {$0.title.doubleValues.contains(fontSize)}) {
@@ -136,41 +142,9 @@ public class FontManager: NSObject {
         }
     }
     
-    var multipleFamiles: Bool {
-        guard let textView = target as? NSTextView else { return false }
-        return textView.selectionFonts.compactMap({$0.familyName}).uniqued().compactMap({ name in  availableFontFamilies.firstIndex(where: {$0.name == name }) }).count > 1
-    }
-    
-    var multipleMembers: Bool {
-        guard let textView = target as? NSTextView else { return false }
-        let selectionFonts = textView.selectionFonts
-        if selectionFonts.compactMap({$0.familyName}).uniqued().compactMap({ name in  availableFontFamilies.firstIndex(where: {$0.name == name }) }).count == 1 {
-            return selectionFonts.compactMap({$0.fontName}).uniqued().count > 1
-        }
-        return false
-    }
-    
-    var targetTextField: NSTextField? {
-        target as? NSTextField
-    }
-    var targetTextView: NSTextView? {
-        target as? NSTextView
-    }
-    
-    var selectedFonts: [NSFont] {
-        get {
-            var selectedFonts: [NSFont] = []
-            if let targetTextView = self.targetTextView {
-                selectedFonts = targetTextView.selectionFonts
-                if selectedFonts.isEmpty, let font = targetTextView.typingAttributes[.font] as? NSFont {
-                    selectedFonts = [font]
-                }
-            }
-            return selectedFonts
-        }
-    }
-    
     func updateSelectedFont(for textView: NSTextView) {
+        fontFamilyPopUpButton?.menu?.handlers = .init()
+        fontMemberPopUpButton?.menu?.handlers = .init()
         var fonts = textView.selectionFonts
         if fonts.isEmpty, let font = textView.typingAttributes[.font] as? NSFont {
             fonts = [font]
@@ -179,46 +153,23 @@ public class FontManager: NSObject {
            selectedFont = fonts.first
         } else if fonts.count > 1 {
             selectedFont = nil
-            let familyIndexes = fonts.compactMap({$0.familyName}).uniqued().compactMap({ name in  availableFontFamilies.firstIndex(where: {$0.name == name }) })
+            let familyIndexes = fonts.compactMap({$0.familyName}).uniqued().compactMap({ name in  availableFontFamilies.firstIndex(where: {$0.name == name }) }).sorted()
             if familyIndexes.count == 1 {
                 fontFamilyPopUpButton?.selectItem(at: familyIndexes.first!)
                 if let fontMemberPopUpButton = fontMemberPopUpButton {
                     updateMembersPopUpButton(for: availableFontFamilies[familyIndexes.first!])
-                    let memberIndexes = fonts.compactMap({$0.fontName}).uniqued().compactMap({name in currentFontMembers.firstIndex(where: {$0.fontName == name }) })
+                    let memberIndexes = fonts.compactMap({$0.fontName}).uniqued().compactMap({name in currentFontMembers.firstIndex(where: {$0.fontName == name }) }).sorted()
                     if memberIndexes.count == 1 {
                         fontMemberPopUpButton.selectItem(at: memberIndexes.first!)
                     } else if memberIndexes.count > 1 {
-                        if let item = fontMemberPopUpButton.menu?.items[safe: memberIndexes.first!] {
-                            item.representedObject(item.title).tag(555).title("Multiple")
-                            fontMemberPopUpButton.selectItem(withTag: 555)
-                            fontMemberPopUpButton.menu?.handlers.willOpen = {
-                                if let item = fontMemberPopUpButton.menu?.item(withTag: 555), let title = item.representedObject as? String {
-                                    item.title = title
-                                }
-                            }
-                            fontMemberPopUpButton.menu?.handlers.didClose = {
-                                fontMemberPopUpButton.menu?.item(withTag: 555)?.title = "Multiple"
-                            }
-                        }
-                        /*
-                        fontMemberPopUpButton.selectItem(at: memberIndexes.first!)
-                        let title = fontMemberPopUpButton.selectedItem?.title ?? "Non"
-                        fontMemberPopUpButton.selectedItem?.title = "Multiple"
-                        fontMemberPopUpButton.menu?.handlers.willOpen = {
-                            fontMemberPopUpButton.selectedItem?.title = title
-                        }
-                        fontMemberPopUpButton.menu?.handlers.didClose = {
-                            fontMemberPopUpButton.selectedItem?.title = "Multiple"
-                        }
-                         */
-                      //  fontMemberPopUpButton.selectItem(withTag: 444)
+                        setupMultipleItem(for: fontMemberPopUpButton, index: memberIndexes.first!)
                         for index in memberIndexes {
                             fontMemberPopUpButton.menu?.items[safe: index]?.state = .mixed
                         }
                     }
                 }
             } else if familyIndexes.count > 1, let fontFamilyPopUpButton = fontFamilyPopUpButton {
-                fontFamilyPopUpButton.selectItem(withTag: 444)
+                setupMultipleItem(for: fontFamilyPopUpButton, index: familyIndexes.first!)
                 for index in familyIndexes {
                     fontFamilyPopUpButton.menu?.items[safe: index]?.state = .mixed
                 }
@@ -236,10 +187,27 @@ public class FontManager: NSObject {
         }
     }
     
+    func setupMultipleItem(for popUpButton: NSPopUpButton, index: Int) {
+        popUpButton.item(at: index)
+        if let item = popUpButton.item(at: index) {
+            item.representedObject(item.title).tag(555).title("Multiple")
+            popUpButton.selectItem(withTag: 555)
+            popUpButton.menu?.handlers.willOpen = {
+                if let item = popUpButton.item(withTag: 555), let title = item.representedObject as? String {
+                    item.title = title
+                }
+            }
+            popUpButton.menu?.handlers.didClose = {
+                popUpButton.item(withTag: 555)?.title = "Multiple"
+            }
+        }
+    }
+    
     /// The popup button for selecting the font family.
     public weak var fontFamilyPopUpButton: NSPopUpButton? {
         didSet {
             guard oldValue != fontFamilyPopUpButton else { return }
+            oldValue?.actionBlock = nil
             setupAutomaticTargetObservation()
             guard let fontFamilyPopUpButton = fontFamilyPopUpButton else { return }
             fontFamilyPopUpButton.actionBlock = { [weak self] _ in
@@ -259,10 +227,10 @@ public class FontManager: NSObject {
     public weak var fontMemberPopUpButton: NSPopUpButton? {
         didSet {
             guard oldValue != fontMemberPopUpButton, let fontMemberPopUpButton = fontMemberPopUpButton else { return }
+            oldValue?.actionBlock = nil
             fontMemberPopUpButton.actionBlock = { [weak self] _ in
                 guard let self = self else { return }
                 if let textView = self.target as? NSTextView, textView.selectionFonts.count > 1 {
-                    if self.multipleMembers {
                         fontMemberPopUpButton.items.forEach({$0.state = .off})
                         fontMemberPopUpButton.item(at: fontMemberPopUpButton.indexOfSelectedItem)?.state = .on
                         let member = self.currentFontMembers[fontMemberPopUpButton.indexOfSelectedItem]
@@ -270,7 +238,6 @@ public class FontManager: NSObject {
                         if !newSelectionFonts.isEmpty {
                             textView.selectionFonts = newSelectionFonts
                         }
-                    }
                 } else {
                     self._currentMemberIndex = fontMemberPopUpButton.indexOfSelectedItem
                     self.updateSelectedFont()
@@ -285,12 +252,15 @@ public class FontManager: NSObject {
     
     var firstResponderObserver: NSKeyValueObservation? = nil
     func makeTargetFirstResponder() {
-        guard _targetIsFirstResonder else { return }
-        if let textView = target as? NSTextView {
-            textView.window?.makeFirstResponder(textView)
-            textView.selectedRanges = textView.selectedRanges
-        } else if let textField = target as? NSTextField {
-            textField.window?.makeFirstResponder(textField)
+        guard let fontSizeTextField = fontSizeTextField, fontSizeTextField.isFirstResponder else { return }
+        if _targetIsFirstResonder {
+            if let textView = target as? NSTextView {
+                textView.makeFirstResponder()
+            } else if let textField = target as? NSTextField {
+                textField.makeFirstResponder()
+            }
+        } else {
+            fontSizeTextField.resignFirstResponding()
         }
     }
     
@@ -298,32 +268,37 @@ public class FontManager: NSObject {
     public weak var fontSizeTextField: NSTextField? {
         didSet {
             guard oldValue != fontSizeTextField, let fontSizeTextField = fontSizeTextField else { return }
+            oldValue?.editingHandlers = .init()
             fontSizeTextField.doubleValue = fontSize
-         //   fontSizeTextField.editingHandlers
-            fontSizeTextField.actionOnEnterKeyDown = .endEditing
-            fontSizeTextField.actionOnEscapeKeyDown = .endEditingAndReset
+        //    fontSizeTextField.actionOnEnterKeyDown = .endEditing
+         //   fontSizeTextField.actionOnEscapeKeyDown = .endEditingAndReset
+            var stringValue = fontSizeTextField.stringValue
+            var placeholderString = fontSizeTextField.placeholderString
             fontSizeTextField.editingHandlers.didBegin = { [weak self] in
                 guard let self = self else { return }
+                stringValue = fontSizeTextField.stringValue
+                placeholderString = fontSizeTextField.placeholderString
                 self._targetIsFirstResonder = self.targetIsFirstResonder
             }
-            fontSizeTextField.editingHandlers.didEnd = { [weak self] in
-                guard let self = self, let fontSizeTextField = self.fontSizeTextField else { return  }
-                if let textView = self.target as? NSTextView, textView.selectionFonts.count > 1 {
-                    textView.selectionFonts = textView.selectionFonts.compactMap({$0.withSize(fontSizeTextField.doubleValue)})
-                } else {
-                    self.fontSize = fontSizeTextField.doubleValue
-                }
-                self.makeTargetFirstResponder()
+            fontSizeTextField.editingHandlers.shouldEdit = { string in
+                let doubleValue = Double(string.replacingOccurrences(of: ",", with: "."))
+                return doubleValue != nil || string == ""
             }
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            if let minFontSize = minFontSize {
-                formatter.minimum = NSNumber(minFontSize)
-            }
-            if let maxFontSize = maxFontSize {
-                formatter.maximum = NSNumber(maxFontSize)
-            }
-            fontSizeTextField.formatter = formatter
+             fontSizeTextField.editingHandlers.didEnd = { [weak self] in
+                 guard let self = self, let fontSizeTextField = self.fontSizeTextField else { return  }
+                 if let fontSize = Double(fontSizeTextField.stringValue.replacingOccurrences(of: ",", with: ".")) {
+                     if let textView = self.target as? NSTextView, textView.selectionFonts.count > 1 {
+                         textView.selectionFonts = textView.selectionFonts.compactMap({$0.withSize(fontSize)})
+                     } else {
+                         self.fontSize = fontSize
+                     }
+                 } else {
+                     fontSizeTextField.stringValue = stringValue
+                     fontSizeTextField.placeholderString = placeholderString
+                 }
+                 self.makeTargetFirstResponder()
+             }
+           // fontSizeTextField.formatter = NumberFormatter(style: .decimal, minValue: Double(minFontSize ?? 1), maxValue: Double(maxFontSize ?? 20000))
             fontSizeTextField.isEnabled = isEnabled
         }
     }
@@ -332,6 +307,7 @@ public class FontManager: NSObject {
     public weak var fontSizePopUpButton: NSPopUpButton? {
         didSet {
             guard oldValue != fontSizePopUpButton, let fontSizePopUpButton = fontSizePopUpButton else { return }
+            oldValue?.actionBlock = nil
             let index = fontSizePopUpButton.items.firstIndex(where: {$0.title.doubleValues.contains(fontSize)}) ?? 0
             fontSizePopUpButton.selectItem(at: index)
             fontSizePopUpButton.actionBlock = { [weak self] _ in
@@ -347,6 +323,7 @@ public class FontManager: NSObject {
     public weak var fontSizeStepper: NSStepper? {
         didSet {
             guard oldValue != fontSizeStepper, let fontSizeStepper = fontSizeStepper else { return }
+            oldValue?.actionBlock = nil
             fontSizeStepper.maxValue = maxFontSize ?? 100000
             fontSizeStepper.minValue = minFontSize ?? 1
             fontSizeStepper.doubleValue = fontSize
@@ -365,6 +342,7 @@ public class FontManager: NSObject {
     public weak var fontTraitsSegmentedControl: NSSegmentedControl? {
         didSet {
             guard oldValue != fontTraitsSegmentedControl, let segmentedControl = fontTraitsSegmentedControl else { return }
+            oldValue?.actionBlock = nil
             segmentedControl.trackingMode = .selectAny
             segmentedControl.isEnabled = isEnabled
             segmentedControl.segments {
@@ -531,9 +509,8 @@ public class FontManager: NSObject {
     public var minFontSize: CGFloat? = nil {
         didSet {
             fontSizeStepper?.minValue = minFontSize ?? 1
-            (fontSizeTextField?.formatter as? NumberFormatter)?.minimum = nil
+            fontSizeTextField?.numberFormatter?.minimumValue = minFontSize ?? 1
             if let minFontSize = minFontSize {
-                (fontSizeTextField?.formatter as? NumberFormatter)?.minimum = NSNumber(minFontSize)
                 if fontSize < minFontSize {
                     fontSize = minFontSize
                 }
@@ -544,9 +521,9 @@ public class FontManager: NSObject {
     public var maxFontSize: CGFloat? = nil {
         didSet {
             fontSizeStepper?.maxValue = maxFontSize ?? 100000
-            (fontSizeTextField?.formatter as? NumberFormatter)?.maximum = nil
+            fontSizeTextField?.numberFormatter?.maximumValue = nil
             if let maxFontSize = maxFontSize {
-                (fontSizeTextField?.formatter as? NumberFormatter)?.maximum = NSNumber(maxFontSize)
+                fontSizeTextField?.numberFormatter?.maximumValue = maxFontSize
                 if fontSize > maxFontSize {
                     fontSize = maxFontSize
                 }
@@ -731,11 +708,8 @@ public class FontManager: NSObject {
     func updateTargetFont() {
         guard let selectedFont = selectedFont else { return }
         if let textView = target as? NSTextView {
-            if textView.selectionFonts.isEmpty {
-                textView.typingAttributes[.font] = selectedFont
-            } else {
-                textView.selectionFonts = [selectedFont]
-            }
+            textView.selectionFonts = [selectedFont]
+            textView.typingAttributes[.font] = selectedFont
         } else if let control = target as? NSControl {
             control.font = selectedFont
         }

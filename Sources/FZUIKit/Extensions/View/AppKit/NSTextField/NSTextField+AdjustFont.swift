@@ -281,23 +281,23 @@
                         methodSignature: (@convention(c) (AnyObject, Selector, NSTextView, Selector) -> (Bool)).self,
                         hookSignature: (@convention(block) (AnyObject, NSTextView, Selector) -> (Bool)).self
                     ) { store in { object, textView, selector in
-                        if let doCommand = (object as? NSTextField)?.editingHandlers.doCommand {
-                            return doCommand(selector)
-                        }
                         if let textField = object as? NSTextField {
+                            if let doCommand = textField.editingHandlers.doCommand {
+                                return doCommand(selector)
+                            }
                             switch selector {
                             case #selector(NSControl.cancelOperation(_:)):
                                 switch textField.actionOnEscapeKeyDown {
                                 case .endEditingAndReset:
                                     textField.stringValue = textField.editStartString
                                     textField.adjustFontSize()
-                                    textField.window?.makeFirstResponder(nil)
+                                    textField.resignFirstResponding()
                                     return true
                                 case .endEditing:
                                     if textField.editingHandlers.shouldEdit?(textField.stringValue) == false {
                                         return false
                                     } else {
-                                        textField.window?.makeFirstResponder(nil)
+                                        textField.resignFirstResponding()
                                         return true
                                     }
                                 case .none:
@@ -309,7 +309,7 @@
                                     if textField.editingHandlers.shouldEdit?(textField.stringValue) == false {
                                         return false
                                     } else {
-                                        textField.window?.makeFirstResponder(nil)
+                                        textField.resignFirstResponding()
                                         return true
                                     }
                                 case .none: break
@@ -389,15 +389,16 @@
                         methodSignature: (@convention(c) (AnyObject, Selector, NSEvent) -> Void).self,
                         hookSignature: (@convention(block) (AnyObject, NSEvent) -> Void).self
                     ) { store in { object, event in
-                        if let textField = (object as? NSTextField), textField.isEditableByDoubleClick, event.clickCount > 2, !textField.isFirstResponder {
+                        if let textField = (object as? NSTextField), textField.isEditableByDoubleClick, event.clickCount > 1, !textField.isFirstResponder {
                             textField._isEditable = textField.isEditable
                             textField._isSelectable = textField.isSelectable
                             textField.isSelectable = true
                             textField.isEditable = true
-                            textField.becomeFirstResponder()
+                            textField.makeFirstResponder()
+                        } else {
+                            store.original(object, #selector(NSResponder.mouseDown(with:)), event)
                         }
-                        store.original(object, #selector(NSResponder.mouseDown(with:)), event)
-                    }
+                        }
                     })
                     
                     /*

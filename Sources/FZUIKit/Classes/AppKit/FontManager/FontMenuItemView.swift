@@ -8,32 +8,37 @@
 #if os(macOS)
 import AppKit
 
-class FontMenuItemView: MenuItemView {
+public class FontMenuItemView: MenuItemView {
     let contentView = ContentView()
     
-    var font: NSFont {
+    public var font: NSFont {
         get { contentView.font }
         set { contentView.font = newValue }
     }
     
-    var title: String? {
+    public var title: String? {
         get { contentView.title }
         set { contentView.title = newValue }
     }
     
-    init() {
+    public var showsSelection: Bool {
+        get { contentView.showsSelection }
+        set { contentView.showsSelection = newValue }
+    }
+    
+    public init() {
         super.init(frame: CGRect(0, 0, 120, 28))
         sharedInit()
     }
     
-    init(font: NSFont, title: String? = nil) {
+    public init(font: NSFont, title: String? = nil) {
         super.init(frame: CGRect(0, 0, 120, 28))
         sharedInit()
         self.title = title
         self.font = font
     }
     
-    override init(frame frameRect: NSRect) {
+    public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         sharedInit()
     }
@@ -47,7 +52,7 @@ class FontMenuItemView: MenuItemView {
         addSubview(contentView, layoutAutomatically: true)
     }
     
-    override var intrinsicContentSize: NSSize {
+    public override var intrinsicContentSize: NSSize {
         var intrinsicContentSize = super.intrinsicContentSize
         intrinsicContentSize.width = contentView.frame.width
         return intrinsicContentSize
@@ -125,6 +130,10 @@ extension FontMenuItemView {
         func sharedInit() {
             imageView.imageScaling = .scaleProportionallyUpOrDown
             imageView.translatesAutoresizingMaskIntoConstraints = false
+            if #available(macOS 11.0, *) {
+                imageView.symbolConfiguration = .init(pointSize: NSFont.systemFontSize, weight: .heavy)
+            }
+            imageView.contentTintColor = .labelColor
             
             textField.isSelectable = false
             textField.lineBreakMode = .byTruncatingTail
@@ -141,7 +150,7 @@ extension FontMenuItemView {
             if showsSelection {
                 addSubview(imageView)
                 layoutConstraints = [
-                    imageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+                    imageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
                     imageView.centerYAnchor.constraint(equalTo: centerYAnchor),
                     imageView.widthAnchor.constraint(equalToConstant: 12),
                     textField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 4),
@@ -150,7 +159,7 @@ extension FontMenuItemView {
             } else {
                 imageView.removeFromSuperview()
                 layoutConstraints = [
-                    textField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+                    textField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
                     textField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
                 ]
             }
