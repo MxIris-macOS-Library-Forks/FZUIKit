@@ -81,9 +81,9 @@
             isBordered = false
             textLayout = .wraps
             
-            verticalTextAlignment = .center
+            isVerticallyCentered = true
             actionOnEnterKeyDown = .endEditing
-            actionOnEscapeKeyDown = .endEditingAndReset
+            actionOnEscapeKeyDown = .endEditing
             focusType = .roundedCorners(4.0)
             (cell as? NSTextFieldCell)?.setWantsNotificationForMarkedText(true)
             translatesAutoresizingMaskIntoConstraints = false
@@ -92,6 +92,8 @@
             placeholderSize = placeholderStringSize()
             automaticallyResizesToFit = true
             invalidateIntrinsicContentSize()
+            super.drawsBackground = false
+            super.backgroundColor = nil
         }
 
         var placeholderSize: CGSize? {
@@ -102,11 +104,35 @@
             }
         }
 
-        public var lastContentSize = CGSize() {
+        var lastContentSize = CGSize() {
             didSet {
                 lastContentSize = CGSize(width: ceil(lastContentSize.width), height: ceil(lastContentSize.height))
             }
         }
+        
+        open override var backgroundColor: NSUIColor? {
+            get { backgroundColorAnimatable }
+            set {
+                wantsLayer = true
+                Self.swizzleAnimationForKey()
+                NSView.toRealSelf(self).dynamicColors.background = newValue
+                var animatableColor = newValue?.resolvedColor(for: self)
+                if animatableColor == nil, isProxy() {
+                    animatableColor = .clear
+                }
+
+                if layer?.backgroundColor?.isVisible == false || layer?.backgroundColor == nil {
+                    layer?.backgroundColor = animatableColor?.withAlphaComponent(0.0).cgColor ?? .clear
+                }
+                backgroundColorAnimatable = animatableColor
+            }
+        }
+        
+        open override var drawsBackground: Bool {
+            get { true }
+            set { }
+        }
+
 
         override public var stringValue: String {
             didSet {
@@ -181,6 +207,11 @@
         override public func textDidChange(_ notification: Notification) {
             super.textDidChange(notification)
             invalidateIntrinsicContentSize()
+        }
+        
+        override public class var cellClass: AnyClass? {
+            get { ExtendedTextFieldCell.self }
+            set { super.cellClass = newValue }
         }
 
         override public var intrinsicContentSize: CGSize {

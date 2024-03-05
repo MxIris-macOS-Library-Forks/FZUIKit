@@ -32,6 +32,7 @@ extension NSView {
         set {
             set(associatedValue: newValue, key: "windowHandlers", object: self)
             setupObserverView()
+            setupViewObservation()
         }
     }
     
@@ -96,7 +97,7 @@ extension NSView {
                 addGestureRecognizer(observerGestureRecognizer!)
             }
         } else {
-            observerGestureRecognizer?.removeFromView()
+            observerGestureRecognizer?.removeFromView(disablingReadding: true)
             observerGestureRecognizer = nil
         }
     }
@@ -117,11 +118,7 @@ extension NSView {
             if viewHandlers.isFirstResponder != nil && viewObserver?.isObserving(\.window?.firstResponder) == false {
                 viewObserver?.add(\.window?.firstResponder) { [weak self] _, firstResponder in
                     guard let self = self else { return }
-                    if let self = self as? NSTextField, let firstResponder = firstResponder {
-                        self._isFirstResponder = self.currentEditor() == firstResponder
-                    } else {
-                        self._isFirstResponder = self.isFirstResponder
-                    }
+                    self._isFirstResponder = self.isFirstResponder
                 }
             } else if viewHandlers.isFirstResponder == nil {
                 viewObserver?.remove(\.window?.firstResponder)
@@ -642,6 +639,27 @@ extension NSView {
             super.viewWillMove(toWindow: newWindow)
         }
         
+        /*
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            superview?.windowHandlers.window?(window)
+            setupFirstResponderObservation()
+        }
+        
+        func setupFirstResponderObservation() {
+            if let window = window, superview?.viewHandlers.isFirstResponder != nil {
+                firstResponderObservation = window.observeChanges(for: \.firstResponder) { [weak self] old, new in
+                    guard let self = self, let superview = self.superview, superview.viewHandlers.isFirstResponder != nil else { return }
+                    superview._isFirstResponder = superview.isFirstResponder
+                }
+            } else {
+                firstResponderObservation = nil
+            }
+        }
+        
+        var firstResponderObservation: NSKeyValueObservation?
+        */
+        
         func updateWindowObserver() {
             if _windowHandlers.isKey == nil {
                 removeWindowKeyObserver()
@@ -701,7 +719,7 @@ extension NSView {
         var windowIsMain = false {
             didSet {
                 if oldValue != windowIsMain {
-                    _windowHandlers.isMain?(windowIsMain)
+                    _windowHandlers.isMain?(windowIsKey)
                 }
             }
         }

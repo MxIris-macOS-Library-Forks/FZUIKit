@@ -15,7 +15,6 @@ class VerticallyCenteredTextField: NSTextField {
         set {  }
     }
 }
-
 class VerticallyCenteredTextFieldCell: NSTextFieldCell {
     var mIsEditingOrSelecting:Bool = false
     

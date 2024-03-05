@@ -8,7 +8,7 @@
 #if os(macOS)
 import AppKit
 
-class ObserverGestureRecognizer: NSGestureRecognizer {
+class ObserverGestureRecognizer: ReattachingGestureRecognizer {
     override func keyDown(with event: NSEvent) {
         view?.keyHandlers.keyDown?(event)
         super.keyDown(with: event)
@@ -130,25 +130,6 @@ class ObserverGestureRecognizer: NSGestureRecognizer {
         })
         NSPasteboard.general.writeObjects(items.compactMap({$0.pasteboardWriting}))
         view.beginDraggingSession(with: draggingItems, event: event, source: observerView)
-    }
-    
-    var viewObservation: NSKeyValueObservation? = nil
-    
-    convenience init() {
-        self.init(target: nil, action: nil)
-    }
-
-    override init(target: Any?, action: Selector?) {
-        super.init(target: target, action: action)
-        viewObservation = observeChanges(for: \.view) { old, new in
-            if new == nil, let old = old {
-                old.setupEventMonitors()
-            }
-        }
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
     }
 }
 
