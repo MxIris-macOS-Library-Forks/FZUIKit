@@ -11,6 +11,23 @@
     import FZSwiftUtils
 
     public extension NSTextField {
+        /**
+         Initializes a text field that automatically resizes to fit it's string value.
+         
+         - Parameters:
+            - stringValue: A string to use as the content of the label.
+         
+         - Returns: An initialized `NSTextField`.
+         */
+        convenience init(resizingLabel stringValue: String) {
+            self.init(labelWithString: stringValue)
+            self.automaticallyResizesToFit = true
+            self.backgroundColor = nil
+            self.focusType = .roundedCorners(4.0)
+            self.isVerticallyCentered = true
+            self.stringValue = stringValue
+            self.resizeToFit()
+        }
         
         /// The receiver’s number formatter.
         var numberFormatter: NumberFormatter? {

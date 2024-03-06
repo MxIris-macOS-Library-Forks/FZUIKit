@@ -46,25 +46,14 @@ extension NSTextField {
         }
     }
     
-    /// The leading padding of the text filed.
-    public var leadingPadding: CGFloat {
-        get { extendedTextFieldCell?.leadingPadding ?? 0.0 }
+    /// The padding of the text.
+    public var textPadding: NSEdgeInsets {
+        get { extendedTextFieldCell?.textPadding ?? .zero }
         set {
-            if newValue != 0.0 {
+            if newValue != .zero {
                 convertToExtendedTextFieldCell()
             }
-            extendedTextFieldCell?.leadingPadding = newValue
-        }
-    }
-    
-    /// The trailing padding of the text field.
-    public var trailingPadding: CGFloat {
-        get { extendedTextFieldCell?.trailingPadding ?? 0.0 }
-        set {
-            if newValue != 0.0 {
-                convertToExtendedTextFieldCell()
-            }
-            extendedTextFieldCell?.leadingPadding = newValue
+            extendedTextFieldCell?.textPadding = newValue
         }
     }
     
@@ -88,17 +77,20 @@ extension NSTextField {
                 let transform = transform
                 let transform3D = transform3D
                 let shadowPath = shadowPath
-                
+                let clipsToBounds = clipsToBounds
+
                 cell = textFieldCell.convertToExtended()
-                
                 self.wantsLayer = true
+                layer.delegate = self as? any CALayerDelegate
+                self.layer = layer
                 self.layer?.backgroundColor = backgroundColor
                 self.border = border
                 self.innerShadow = innerShadow
                 self.outerShadow = outerShadow
-                self.cornerRadius = cornerRadius
-                self.cornerCurve = cornerCurve
                 self.roundedCorners = roundedCorners
+                self.cornerCurve = cornerCurve
+                self.cornerRadius = cornerRadius
+                self.clipsToBounds = clipsToBounds
                 self.isOpaque = isOpaque
                 self.mask = mask
                 self.anchorPoint = anchorPoint
@@ -125,58 +117,86 @@ class ExtendedTextFieldCell: NSTextFieldCell {
     /// A Boolean value indicating whether the text is vertically centered.
     public var isVerticallyCentered: Bool = false
     
-    /// The leading padding of the cell.
-    public var leadingPadding: CGFloat = 0 {
-        didSet { leadingPadding = leadingPadding.clamped(min: 0.0) }
-    }
-    
-    /// The trailing padding of the cell.
-    public var trailingPadding: CGFloat = 0 {
-        didSet { trailingPadding = trailingPadding.clamped(min: 0.0) }
+    /// The padding of the text.
+    public var textPadding = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0) {
+        didSet { 
+            textPadding.bottom = textPadding.bottom.clamped(min: 0.0)
+            textPadding.top = textPadding.top.clamped(min: 0.0)
+            textPadding.left = textPadding.left.clamped(min: 0.0)
+            textPadding.right = textPadding.right.clamped(min: 0.0)
+        }
     }
     
     var isEditingOrSelecting = false
     
-    override public func titleRect(forBounds rect: NSRect) -> NSRect {
+    override func cellSize(forBounds rect: NSRect) -> NSSize {
+        var size = super.cellSize(forBounds: rect)
+        size.height += (textPadding.height)
+        return size
+    }
+
+    override func titleRect(forBounds rect: NSRect) -> NSRect {
         if isVerticallyCentered {
-            var titleRect = super.titleRect(forBounds: rect)
+            var titleRect = rect.insetBy(dx: textPadding.left, dy: textPadding.bottom)
+            
+            if !isEditingOrSelecting {
+                let textSize = self.cellSize(forBounds: rect)
+                let heightDelta = titleRect.size.height - textSize.height
+                if heightDelta > 0 {
+                    titleRect.size.height -= heightDelta
+                    titleRect.origin.y += heightDelta/2
+                }
+            }
+            return titleRect
+            
+            /*
+             var titleRect = super.titleRect(forBounds: rect)
+             let minimumHeight = cellSize(forBounds: rect).height
+             titleRect.origin.y += (titleRect.size.height - minimumHeight) / 2
+             titleRect.size.height = minimumHeight
+             titleRect = titleRect.insetBy(dx: textPadding.left, dy: textPadding.bottom)
+             return titleRect
+             */
+            
+            /*
+            var titleRect = rect.insetBy(dx: textPadding.left, dy: textPadding.bottom)
             let minimumHeight = cellSize(forBounds: rect).height
             titleRect.origin.y += (titleRect.size.height - minimumHeight) / 2
             titleRect.size.height = minimumHeight
-            titleRect = titleRectWithPadding(for: titleRect)
             return titleRect
+             */
         } else {
-            let paddedRect = titleRectWithPadding(for: rect)
-            return super.titleRect(forBounds: paddedRect)
+            return rect.insetBy(dx: textPadding.left, dy: textPadding.bottom)
         }
     }
-    
-    func titleRectWithPadding(for rect: NSRect) -> NSRect {
-        let isLTR = userInterfaceLayoutDirection == .leftToRight
-        let newRect = NSRect(x: rect.origin.x + (isLTR ? leadingPadding : trailingPadding),
-                             y: rect.origin.y,
-                             width: rect.width - leadingPadding - trailingPadding,
-                             height: rect.height)
-        return newRect
-    }
-    
-    override public func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
-        super.drawInterior(withFrame: titleRect(forBounds: cellFrame), in: controlView)
-    }
-    
-    override public func edit(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?, event: NSEvent?) {
+
+    override func edit(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?, event: NSEvent?) {
         isEditingOrSelecting = true
-        super.edit(withFrame: titleRect(forBounds: rect), in: controlView, editor: textObj, delegate: delegate, event: event)
+        let insetRect = rect.insetBy(dx: textPadding.left, dy: textPadding.bottom)
+        super.edit(withFrame: insetRect, in: controlView, editor: textObj, delegate: delegate, event: event)
         isEditingOrSelecting = false
     }
-    
-    override public func select(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?, start selStart: Int, length selLength: Int) {
+
+    override func select(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?, start selStart: Int, length selLength: Int) {
         isEditingOrSelecting = true
-        super.select(withFrame: titleRect(forBounds: rect), in: controlView, editor: textObj, delegate: delegate, start: selStart, length: selLength)
+        let insetRect = rect.insetBy(dx: textPadding.left, dy: textPadding.bottom)
+        super.select(withFrame: insetRect, in: controlView, editor: textObj, delegate: delegate, start: selStart, length: selLength)
         isEditingOrSelecting = false
     }
+
+    override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
+        let insetRect = cellFrame.insetBy(dx: textPadding.left, dy: textPadding.bottom)
+        super.drawInterior(withFrame: insetRect, in: controlView)
+    }
     
-    override public func drawFocusRingMask(withFrame cellFrame: NSRect, in controlView: NSView) {
+    /*
+    override func drawingRect(forBounds rect: NSRect) -> NSRect {
+        let newRect = titleRectWithPadding(for: rect)
+        return super.drawingRect(forBounds: newRect)
+    }
+     */
+    
+    override func drawFocusRingMask(withFrame cellFrame: NSRect, in controlView: NSView) {
         guard focusType != .none else {
             return
         }
@@ -204,6 +224,8 @@ class ExtendedTextFieldCell: NSTextFieldCell {
         // Make forcus ring frame fit with cell size
         // let newFrame = cellFrame.insetBy(dx: 2, dy: 1)
         let newFrame = cellFrame
+        
+        
         
         let path = NSBezierPath(roundedRect: newFrame, xRadius: cornerRadius, yRadius: cornerRadius)
         path.fill()

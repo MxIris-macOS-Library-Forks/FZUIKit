@@ -21,7 +21,7 @@
             set {
                 guard newValue != adjustsFontSizeToFitWidth else { return }
                 set(associatedValue: newValue, key: "adjustsFontSizeToFitWidth", object: self)
-                setupTextFieldObserver()
+                setupFontAdjustment()
             }
         }
 
@@ -36,7 +36,7 @@
                 let newValue = newValue.clamped(max: 1.0)
                 guard newValue != minimumScaleFactor else { return }
                 set(associatedValue: newValue, key: "minimumScaleFactor", object: self)
-                setupTextFieldObserver()
+                setupFontAdjustment()
             }
         }
 
@@ -77,7 +77,8 @@
             return fittingPointSize ?? 0.0
         }
 
-        func adjustFontSize(requiresSmallerScale: Bool = false) {
+        func adjustFontSize() {
+            guard needsFontAdjustments else { return }
             guard let _font = _font else { return }
             isAdjustingFontSize = true
             cell?.font = _font
@@ -124,77 +125,44 @@
                 needsUpdate = !isFittingCurrentText
             }
         }
+        
+        var needsFontAdjustments: Bool {
+            adjustsFontSizeToFitWidth && minimumScaleFactor != 0.0
+        }
 
-        func setupTextFieldObserver() {
-            if adjustsFontSizeToFitWidth && minimumScaleFactor != 0.0 {
-                if observer == nil {
-                    do {
-                        try replaceMethod(#selector(setter: font),
-                            methodSignature: (@convention(c) (AnyObject, Selector, NSFont?) -> Void).self,
-                            hookSignature: (@convention(block) (AnyObject, NSFont?) -> Void).self
-                        ) { _ in { object, font in
-                            guard let textField = (object as? NSTextField), textField._font != font else { return }
-                            textField._font = font
-                        }
-                        }
-                        
-                        try replaceMethod(#selector(getter: font),
-                            methodSignature: (@convention(c) (AnyObject, Selector) -> NSFont?).self,
-                            hookSignature: (@convention(block) (AnyObject) -> NSFont?).self
-                        ) { _ in { object in
-                            return (object as? NSTextField)?._font ?? nil
-                        }
-                        }
-                        _font = font
-                    } catch {
-                        Swift.debugPrint(error)
+        func setupFontAdjustment() {
+            if needsFontAdjustments {
+                guard isMethodReplaced(#selector(setter: font)) == false else { return }
+                textFieldObserver = nil
+                do {
+                    try replaceMethod(#selector(setter: font),
+                        methodSignature: (@convention(c) (AnyObject, Selector, NSFont?) -> Void).self,
+                        hookSignature: (@convention(block) (AnyObject, NSFont?) -> Void).self
+                    ) { _ in { object, font in
+                        guard let textField = (object as? NSTextField), textField._font != font else { return }
+                        textField._font = font
                     }
+                    }
+                    
+                    try replaceMethod(#selector(getter: font),
+                        methodSignature: (@convention(c) (AnyObject, Selector) -> NSFont?).self,
+                        hookSignature: (@convention(block) (AnyObject) -> NSFont?).self
+                    ) { _ in { object in
+                        return (object as? NSTextField)?._font ?? nil
+                    }
+                    }
+                    _font = font
+                } catch {
+                    Swift.debugPrint(error)
                 }
-                
-                observer = KeyValueObserver(self)
-                observer?.add(\.stringValue, handler: { [weak self] old, new in
-                    guard let self = self, self.isAdjustingFontSize == false, old != new else { return }
-                    self.adjustFontSize()
-                })
-                observer?.add(\.isBezeled, handler: { [weak self] old, new in
-                    guard let self = self, old != new else { return }
-                    self.adjustFontSize()
-                })
-                observer?.add(\.isBordered, handler: { [weak self] old, new in
-                    guard let self = self, old != new else { return }
-                    self.adjustFontSize()
-                })
-                observer?.add(\.bezelStyle, handler: { [weak self] old, new in
-                    guard let self = self, self.isBezeled, old != new else { return }
-                    self.adjustFontSize()
-                })
-                observer?.add(\.preferredMaxLayoutWidth, handler: { [weak self] old, new in
-                    guard let self = self, old != new else { return }
-                    self.adjustFontSize()
-                })
-                observer?.add(\.allowsDefaultTighteningForTruncation, handler: { [weak self] old, new in
-                    guard let self = self, old != new else { return }
-                    self.adjustFontSize()
-                })
-                observer?.add(\.maximumNumberOfLines, handler: { [weak self] old, new in
-                    guard let self = self, old != new else { return }
-                    self.adjustFontSize()
-                })
-                observer?.add(\.frame, handler: { [weak self] old, new in
-                    guard let self = self, old.size != new.size else { return }
-                    self.adjustFontSize()
-                })
-            } else {
-                observer = nil
+                setupTextFieldObserver()
+            } else if isMethodReplaced(#selector(setter: font)) {
+                textFieldObserver = nil
                 resetMethod(#selector(setter: font))
                 resetMethod(#selector(getter: font))
                 font = _font ?? font
+                setupTextFieldObserver()
             }
-        }
-        
-        var observer: KeyValueObserver<NSTextField>? {
-            get { getAssociatedValue(key: "observer", object: self, initialValue: nil) }
-            set { set(associatedValue: newValue, key: "observer", object: self) }
         }
         
         var _font: NSFont? {
@@ -203,6 +171,11 @@
                 set(associatedValue: newValue, key: "_font", object: self)
                 adjustFontSize()
             }
+        }
+        
+        var isAdjustingFontSize: Bool {
+            get { getAssociatedValue(key: "isAdjustingFontSize", object: self, initialValue: false) }
+            set { set(associatedValue: newValue, key: "isAdjustingFontSize", object: self) }
         }
     }
 #endif
