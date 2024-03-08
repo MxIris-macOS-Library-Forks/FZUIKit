@@ -82,6 +82,16 @@
             }
         }
         
+        @objc dynamic var isKey: Bool {
+            get { getAssociatedValue(key: "isKey", object: self, initialValue: isKeyWindow) }
+            set { set(associatedValue: newValue, key: "isKey", object: self) }
+        }
+        
+        @objc dynamic var isMain: Bool {
+            get { getAssociatedValue(key: "isMain", object: self, initialValue: isMainWindow) }
+            set { set(associatedValue: newValue, key: "isMain", object: self) }
+        }
+        
         var windowObserver: KeyValueObserver<NSWindow>? {
             get { getAssociatedValue(key: "windowObserver", object: self, initialValue: nil) }
             set { set(associatedValue: newValue, key: "windowObserver", object: self) }
@@ -287,6 +297,84 @@
             }
         }
     }
+
+extension NSWindow {
+    /// A Boolean value that indicates whether the property `isKeyWindow` is KVO observable.
+    public static var isKeyWindowObservable: Bool {
+        get { isMethodReplaced(#selector(NSWindow.becomeKey)) }
+        set {
+            guard newValue != isKeyWindowObservable else { return }
+            if newValue {
+                do {
+                   try replaceMethod(#selector(NSWindow.becomeKey),
+                   methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
+                   hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
+                       object in
+                       (object as? NSWindow)?.willChangeValue(for: \.isKeyWindow)
+                       store.original(object, #selector(NSWindow.becomeKey))
+                       (object as? NSWindow)?.didChangeValue(for: \.isKeyWindow)
+                       (object as? NSWindow)?.isKey = true
+                       }
+                   }
+                    try replaceMethod(#selector(NSWindow.resignKey),
+                    methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
+                    hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
+                        object in
+                        (object as? NSWindow)?.willChangeValue(for: \.isKeyWindow)
+                        store.original(object, #selector(NSWindow.resignKey))
+                        (object as? NSWindow)?.didChangeValue(for: \.isKeyWindow)
+                        (object as? NSWindow)?.isKey = false
+                        }
+                    }
+                } catch {
+                   // handle error
+                   Swift.debugPrint(error)
+                }
+            } else {
+                resetMethod(#selector(NSWindow.becomeKey))
+                resetMethod(#selector(NSWindow.resignKey))
+            }
+        }
+    }
+    
+    /// A Boolean value that indicates whether the property `isMainWindow` is KVO observable.
+    public static var isMainWindowObservable: Bool {
+        get { isMethodReplaced(#selector(NSWindow.becomeMain)) }
+        set {
+            guard newValue != isMainWindowObservable else { return }
+            if newValue {
+                do {
+                   try replaceMethod(#selector(NSWindow.becomeMain),
+                   methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
+                   hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
+                       object in
+                       (object as? NSWindow)?.willChangeValue(for: \.isMainWindow)
+                       store.original(object, #selector(NSWindow.becomeMain))
+                       (object as? NSWindow)?.didChangeValue(for: \.isMainWindow)
+                       (object as? NSWindow)?.isMain = true
+                       }
+                   }
+                    try replaceMethod(#selector(NSWindow.resignMain),
+                    methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
+                    hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
+                        object in
+                        (object as? NSWindow)?.willChangeValue(for: \.isMainWindow)
+                        store.original(object, #selector(NSWindow.resignMain))
+                        (object as? NSWindow)?.didChangeValue(for: \.isMainWindow)
+                        (object as? NSWindow)?.isMain = false
+                        }
+                    }
+                } catch {
+                   Swift.debugPrint(error)
+                }
+            } else {
+                resetMethod(#selector(NSWindow.becomeMain))
+                resetMethod(#selector(NSWindow.resignMain))
+            }
+        }
+    }
+}
+
 
     private let NSWindowAnimationKeys = ["centerPoint"]
 #endif
