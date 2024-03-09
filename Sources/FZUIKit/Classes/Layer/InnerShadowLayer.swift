@@ -18,16 +18,18 @@
     public class InnerShadowLayer: CALayer {
         /// The configuration of the inner shadow.
         public var configuration: ShadowConfiguration {
-            get { ShadowConfiguration(color: innerShadowColorDynamic, opacity: CGFloat(shadowOpacity), radius: shadowRadius, offset: shadowOffset.point) }
+            get { 
+                var configuration = ShadowConfiguration(color: color, opacity: CGFloat(shadowOpacity), radius: shadowRadius, offset: shadowOffset.point)
+                configuration.colorTransformer = colorTransformer
+                return configuration
+            }
             set {
-                innerShadowColorDynamic = newValue._resolvedColor
-                if let parentView = parentView {
-                    shadowColor = newValue._resolvedColor?.resolvedColor(for: parentView).cgColor
-                    #if os(macOS)
-                        parentView.dynamicColors.innerShadow = newValue._resolvedColor
-                    #endif
+                colorTransformer = newValue.colorTransformer
+                color = newValue.color
+                if let view = superlayer?.parentView {
+                    resolvedColor = newValue._resolvedColor?.resolvedColor(for: view)
                 } else {
-                    shadowColor = newValue._resolvedColor?.cgColor
+                    resolvedColor = newValue._resolvedColor
                 }
                 shadowOpacity = Float(newValue.opacity)
                 let needsUpdate = shadowOffset != newValue.offset.size || shadowRadius != newValue.radius
@@ -40,8 +42,20 @@
                 }
             }
         }
+        
+        var colorTransformer: ColorTransformer?
 
-        var innerShadowColorDynamic: NSUIColor?
+        var resolvedColor: NSUIColor? = nil {
+            didSet {
+                shadowColor = resolvedColor?.cgColor
+            }
+        }
+        
+        var color: NSUIColor? = nil
+        
+        var view: NSUIView? {
+            superlayer?.parentView
+        }
 
         var isUpdating: Bool = false
 
@@ -71,6 +85,7 @@
             sharedInit()
         }
 
+        var obs: NSKeyValueObservation?
         func sharedInit() {
             shadowOpacity = 0
             shadowColor = nil

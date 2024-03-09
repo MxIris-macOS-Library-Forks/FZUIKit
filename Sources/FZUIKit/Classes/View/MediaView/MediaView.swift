@@ -532,39 +532,62 @@ class NoMenuPlayerView: AVPlayerView {
         false
     }
     
+    override func menu(for event: NSEvent) -> NSMenu? {
+        return nil
+    }
+    
     public override var menu: NSMenu? {
-        get {
-            Swift.print("video menu")
-            return nil
-        }
-        set { 
-            
-        }
+        get { return nil }
+        set { }
     }
     
     public override func rightMouseDown(with event: NSEvent) {
         Swift.print("video rightMouseDown")
-        super.rightMouseDown(with: event)
     }
     
     public override func rightMouseUp(with event: NSEvent) {
         Swift.print("video rightMouseUp")
-        super.rightMouseUp(with: event)
     }
     
     public override func mouseDown(with event: NSEvent) {
         Swift.print("video mouseDown")
-        super.mouseDown(with: event)
     }
     
     public override func mouseUp(with event: NSEvent) {
         Swift.print("video mouseUp")
-        super.mouseUp(with: event)
+    }
+    
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        return nil
     }
     
 }
 
     public class NoKeyDownPlayerView: AVPlayerView {
+        
+        public override init(frame frameRect: NSRect) {
+            super.init(frame: frameRect)
+            sharedInit()
+        }
+        
+        public required init?(coder: NSCoder) {
+            super.init(coder: coder)
+            sharedInit()
+        }
+        
+        public init() {
+            super.init(frame: .zero)
+            sharedInit()
+        }
+        
+        func sharedInit() {
+            if #available(macOS 13.0, *) {
+                allowsMagnification = false
+                allowsVideoFrameAnalysis = false
+            }
+            allowsPictureInPicturePlayback = false
+        }
+                
         var _menu: NSMenu? = nil
         public override var menu: NSMenu? {
             get { _menu }

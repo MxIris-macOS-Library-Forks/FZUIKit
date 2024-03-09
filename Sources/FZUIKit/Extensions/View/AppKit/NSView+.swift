@@ -524,15 +524,22 @@
                     layer?.innerShadowLayer?.shadowColor = newColor?.withAlphaComponent(0.0).cgColor ?? .clear
                 }
                 innerShadowColor = newColor
+                layer?.innerShadowLayer?.color = newValue.color
+                innerShadowColorTransformer = newValue.colorTransformer
                 innerShadowOffset = newValue.offset
                 innerShadowRadius = newValue.radius
                 innerShadowOpacity = newValue.opacity
             }
         }
+        
+        var innerShadowColorTransformer: ColorTransformer? {
+            get { layer?.innerShadowLayer?.colorTransformer }
+            set { layer?.innerShadowLayer?.colorTransformer = newValue }
+        }
 
         @objc var innerShadowColor: NSColor? {
-            get { layer?.innerShadowLayer?.shadowColor?.nsUIColor }
-            set { layer?.innerShadowLayer?.shadowColor = newValue?.cgColor }
+            get { layer?.innerShadowLayer?.resolvedColor }
+            set { layer?.innerShadowLayer?.resolvedColor = newValue }
         }
 
         @objc var innerShadowOpacity: CGFloat {
@@ -699,6 +706,13 @@
             }
         }
         
+        /// Sets the text for the view’s tooltip.
+        @discardableResult
+        func toolTip(_ toolTip: String?) -> Self {
+            self.toolTip = toolTip
+            return self
+        }
+
         static func swizzleAnimationForKey() {
             guard didSwizzleAnimationForKey == false else { return }
             didSwizzleAnimationForKey = true

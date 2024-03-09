@@ -77,6 +77,7 @@
             }
 
             func trimString(_ string: String) -> String {
+                guard self != .all else { return string }
                 var string = string
                 var characterSet = CharacterSet()
                 if contains(.lowercaseLetters) == false { characterSet += .lowercaseLetters }
@@ -274,7 +275,7 @@
         }
 
         func observeEditing() {
-            if editingHandlers.needsSwizzle || allowedCharacters.needsSwizzling || minimumNumberOfCharacters != nil || maximumNumberOfCharacters != nil || automaticallyResizesToFit {
+            if editingHandlers.needsSwizzle || allowedCharacters.needsSwizzling || minimumNumberOfCharacters != nil || maximumNumberOfCharacters != nil || automaticallyResizesToFit || needsFontAdjustments || isVerticallyCentered {
                 guard editingNotificationTokens.isEmpty else { return }
                 setupTextFieldObserver()
                 
@@ -288,33 +289,28 @@
                     if let editingRange = self.currentEditor()?.selectedRange {
                         self.editingRange = editingRange
                     }
-                    if self.automaticallyResizesToFit {
-                        self.resizeToFit()
-                    }
-                    self.invalidateIntrinsicContentSize()
                 })
                 
                 editingNotificationTokens.append(
                 NotificationCenter.default.observe(NSTextField.textDidChangeNotification, object: self) { [weak self] notification in
                     guard let self = self else { return }
                     self.updateString()
-                    if self.automaticallyResizesToFit {
-                        self.resizeToFit()
+                    self.resizeToFit()
+                    self.adjustFontSize()
+                    if self.isVerticallyCentered, !self.automaticallyResizesToFit {
+                        self.frame.size.height += 0.0001
+                        self.frame.size.height -= 0.0001
                     }
-                    self.invalidateIntrinsicContentSize()
                 })
                 
                 editingNotificationTokens.append(
                 NotificationCenter.default.observe(NSTextField.textDidEndEditingNotification, object: self) { [weak self] notification in
                     guard let self = self else { return }
                     self.isEditingText = false
-                    self.adjustFontSize()
-                    self.editingHandlers.didEnd?()
-                    if self.automaticallyResizesToFit {
-                        self.resizeToFit()
-                    }
                     self.editStartString = self.stringValue
-                    self.invalidateIntrinsicContentSize()
+                    self.editingHandlers.didEnd?()
+                    self.resizeToFit()
+                    self.adjustFontSize()
                 })
             } else {
                 setupTextFieldObserver()
@@ -408,41 +404,41 @@
                 guard textFieldObserver.isObserving(\.stringValue) == false else { return }
                 textFieldObserver.add(\.stringValue, handler: { [weak self] old, new in
                     guard let self = self, old != new else { return }
-                    if isAdjustingFontSize == false {
-                        self.adjustFontSize()
-                    }
-                    if self.automaticallyResizesToFit, !isEditingText {
-                        self.resizeToFit()
-                    }
-                })
-            } else {
-                textFieldObserver.remove(\.stringValue)
-            }
-            
-            if needsFontAdjustments {
-                guard textFieldObserver.isObserving(\.isBezeled) == false else { return }
-                
-                textFieldObserver.add(\.isBezeled, handler: { [weak self] old, new in
-                    guard let self = self, old != new else { return }
-                    self.adjustFontSize()
-                })
-                textFieldObserver.add(\.isBordered, handler: { [weak self] old, new in
-                    guard let self = self, old != new else { return }
-                    self.adjustFontSize()
-                })
-                textFieldObserver.add(\.bezelStyle, handler: { [weak self] old, new in
-                    guard let self = self, self.isBezeled, old != new else { return }
+                    self.resizeToFit()
                     self.adjustFontSize()
                 })
                 textFieldObserver.add(\.preferredMaxLayoutWidth, handler: { [weak self] old, new in
                     guard let self = self, old != new else { return }
-                    self.adjustFontSize()
-                })
-                textFieldObserver.add(\.allowsDefaultTighteningForTruncation, handler: { [weak self] old, new in
-                    guard let self = self, old != new else { return }
+                    self.resizeToFit()
                     self.adjustFontSize()
                 })
                 textFieldObserver.add(\.maximumNumberOfLines, handler: { [weak self] old, new in
+                    guard let self = self, old != new else { return }
+                    self.resizeToFit()
+                    self.adjustFontSize()
+                })
+                textFieldObserver.add(\.isBezeled, handler: { [weak self] old, new in
+                    guard let self = self, old != new else { return }
+                    self.resizeToFit()
+                    self.adjustFontSize()
+                })
+                textFieldObserver.add(\.isBordered, handler: { [weak self] old, new in
+                    guard let self = self, old != new else { return }
+                    self.resizeToFit()
+                    self.adjustFontSize()
+                })
+                textFieldObserver.add(\.bezelStyle, handler: { [weak self] old, new in
+                    guard let self = self, self.isBezeled, old != new else { return }
+                    self.resizeToFit()
+                    self.adjustFontSize()
+                })
+            } else {
+                textFieldObserver.remove([\.stringValue, \.isBezeled, \.isBordered, \.bezelStyle, \.preferredMaxLayoutWidth, \.maximumNumberOfLines])
+            }
+            
+            if needsFontAdjustments {
+                guard textFieldObserver.isObserving(\.allowsDefaultTighteningForTruncation) == false else { return }
+                textFieldObserver.add(\.allowsDefaultTighteningForTruncation, handler: { [weak self] old, new in
                     guard let self = self, old != new else { return }
                     self.adjustFontSize()
                 })
@@ -451,7 +447,7 @@
                     self.adjustFontSize()
                 })
             } else {
-                textFieldObserver.remove([\.isBezeled, \.isBordered, \.bezelStyle, \.preferredMaxLayoutWidth, \.allowsDefaultTighteningForTruncation, \.maximumNumberOfLines, \.frame])
+                textFieldObserver.remove([\.allowsDefaultTighteningForTruncation, \.frame])
             }
             
             if automaticallyResizesToFit {
@@ -460,12 +456,10 @@
                     guard let self = self, self.automaticallyResizesToFit, !isEditingText else { return }
                     self.resizeToFit()
                 }
-                
                 textFieldObserver.add(\.placeholderString) { [weak self] old, new in
                     guard let self = self, self.automaticallyResizesToFit, self.preferredMinLayoutWidth == Self.placeholderWidth else { return }
                     self.resizeToFit()
                 }
-                
                 textFieldObserver.add(\.placeholderAttributedString) { [weak self] old, new in
                     guard let self = self, self.automaticallyResizesToFit, self.preferredMinLayoutWidth == Self.placeholderWidth else { return }
                     self.resizeToFit()
