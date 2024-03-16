@@ -308,7 +308,7 @@
         }
     }
 
-extension NSWindow {    
+extension NSWindow {
     /// A Boolean value that indicates whether the property `isKey` is KVO observable.
     public static var isKeyWindowObservable: Bool {
         get { isMethodReplaced(#selector(NSWindow.becomeKey)) }
@@ -320,24 +320,27 @@ extension NSWindow {
                    methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
                    hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
                        object in
-                       (object as? NSWindow)?.willChangeValue(for: \.isKeyWindow)
+                       guard let window = object as? NSWindow else {
+                           store.original(object, #selector(NSWindow.becomeKey))
+                           return
+                       }
+                       window.willChangeValue(for: \.isKeyWindow)
                        store.original(object, #selector(NSWindow.becomeKey))
-                       (object as? NSWindow)?.didChangeValue(for: \.isKeyWindow)
-                       (object as? NSWindow)?.isKey = true
+                       window.didChangeValue(for: \.isKeyWindow)
+                       window.isKey = true
+                       window.willChangeValue(for: \.isKeyWindow)
                        }
                    }
                     try replaceMethod(#selector(NSWindow.resignKey),
                     methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
                     hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
                         object in
-                        (object as? NSWindow)?.willChangeValue(for: \.isKeyWindow)
                         store.original(object, #selector(NSWindow.resignKey))
                         (object as? NSWindow)?.didChangeValue(for: \.isKeyWindow)
                         (object as? NSWindow)?.isKey = false
                         }
                     }
                 } catch {
-                   // handle error
                    Swift.debugPrint(error)
                 }
             } else {
@@ -358,17 +361,21 @@ extension NSWindow {
                    methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
                    hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
                        object in
-                       (object as? NSWindow)?.willChangeValue(for: \.isMainWindow)
+                       guard let window = object as? NSWindow else {
+                           store.original(object, #selector(NSWindow.becomeMain))
+                           return
+                       }
+                       window.willChangeValue(for: \.isMainWindow)
                        store.original(object, #selector(NSWindow.becomeMain))
-                       (object as? NSWindow)?.didChangeValue(for: \.isMainWindow)
-                       (object as? NSWindow)?.isMain = true
+                       window.didChangeValue(for: \.isMainWindow)
+                       window.isMain = true
+                       window.willChangeValue(for: \.isMainWindow)
                        }
                    }
                     try replaceMethod(#selector(NSWindow.resignMain),
                     methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
                     hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
                         object in
-                        (object as? NSWindow)?.willChangeValue(for: \.isMainWindow)
                         store.original(object, #selector(NSWindow.resignMain))
                         (object as? NSWindow)?.didChangeValue(for: \.isMainWindow)
                         (object as? NSWindow)?.isMain = false
@@ -384,7 +391,6 @@ extension NSWindow {
         }
     }
 }
-
 
     private let NSWindowAnimationKeys = ["centerPoint"]
 #endif
