@@ -7,10 +7,13 @@
 
 #if os(macOS)
 import AppKit
+import FZSwiftUtils
 
 /// A `NSClipView` that is centered.
 open class CenteredClipView: NSClipView {
-    var shouldCenter: Bool = true
+    /// A Boolean value indicating whether the clipview is centered when it's scrollview magnification is smaller than `1.0`.
+    open var shouldCenter: Bool = true
+    
     override open func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
         var rect = super.constrainBoundsRect(proposedBounds)
         if shouldCenter {

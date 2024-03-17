@@ -9,7 +9,7 @@
 import AppKit
 import FZSwiftUtils
 
-open class ScrollView: NSScrollView {
+open class FZScrollView: NSScrollView {
     
     lazy var _verticalScrollElasticity = verticalScrollElasticity
     lazy var _horizontalScrollElasticity = horizontalScrollElasticity
