@@ -82,7 +82,7 @@
             get { (layer?.mask as? InverseMaskLayer)?.maskLayer?.parentView ?? layer?.mask?.parentView }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 newValue?.wantsLayer = true
                 newValue?.removeFromSuperview()
                 layer?.mask = newValue?.layer
@@ -102,7 +102,7 @@
             get { mask }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 newValue?.wantsLayer = true
                 newValue?.removeFromSuperview()
                 if let newMaskLayer = newValue?.layer {
@@ -144,7 +144,7 @@
         @objc open var center: CGPoint {
             get { frame.center }
             set {
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 frame.center = newValue
             }
         }
@@ -164,7 +164,7 @@
             }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 layer?.setAffineTransform(newValue)
             }
         }
@@ -183,7 +183,7 @@
             }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 layer?.transform = newValue
             }
         }
@@ -199,7 +199,7 @@
             get { transform3D.eulerAnglesDegrees }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 transform3D.eulerAnglesDegrees = newValue
             }
         }
@@ -215,7 +215,7 @@
             get { transform3D.eulerAngles }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 transform3D.eulerAngles = newValue
             }
         }
@@ -231,7 +231,7 @@
             get { layer?.scale ?? CGPoint(x: 1, y: 1) }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 transform3D.scale = Scale(newValue.x, newValue.y, transform3D.scale.z)
             }
         }
@@ -247,7 +247,7 @@
             get { transform3D.perspective }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 transform3D.perspective = newValue
             }
         }
@@ -263,7 +263,7 @@
             get { transform3D.skew }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 transform3D.skew = newValue
             }
         }
@@ -283,7 +283,7 @@
             get { layer?.anchorPoint ?? .zero }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 setAnchorPoint(newValue)
             }
         }
@@ -306,7 +306,7 @@
             set {
                 let clipsToBounds = clipsToBounds
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 layer?.cornerRadius = newValue
                 // fix for macOS 14.0 bug
                 layer?.masksToBounds = clipsToBounds
@@ -322,7 +322,7 @@
             get { layer?.cornerCurve ?? .circular }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 layer?.cornerCurve = newValue
             }
         }
@@ -366,7 +366,7 @@
             get { layer?.borderWidth ?? 0.0 }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 layer?.borderWidth = newValue
             }
         }
@@ -375,7 +375,7 @@
             get { layer?.borderColor?.nsColor }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 NSView.toRealSelf(self).dynamicColors.border = newValue
                 var animatableColor = newValue?.resolvedColor(for: self)
                 if animatableColor == nil, isProxy() {
@@ -425,7 +425,7 @@
             get { self.layer?.shadowColor?.nsColor }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 NSView.toRealSelf(self).dynamicColors.shadow = newValue
                 var animatableColor = newValue?.resolvedColor(for: self)
                 if animatableColor == nil, isProxy() {
@@ -454,7 +454,7 @@
             get { (layer?.shadowOffset ?? .zero).point }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 layer?.shadowOffset = newValue.size
             }
         }
@@ -470,7 +470,7 @@
             get { layer?.shadowRadius ?? .zero }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 layer?.shadowRadius = newValue
             }
         }
@@ -486,7 +486,7 @@
             get { CGFloat(layer?.shadowOpacity ?? .zero) }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 layer?.shadowOpacity = Float(newValue)
             }
         }
@@ -499,20 +499,11 @@
          The default value is `nil`, which results in a view with no shadow path.
          */
         public var shadowPath: NSBezierPath? {
-            get {
-                if let cgPath = shadowPathAnimatable {
-                    return NSBezierPath(cgPath: cgPath)
-                }
-                return nil
-            }
+            get { shadowPathAnimatable?.bezierPath }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
-                if newValue == nil, isProxy() {
-                    shadowPathAnimatable = NSBezierPath(roundedRect: layer?.bounds ?? .zero, cornerRadius: cornerRadius).cgPath
-                } else {
-                    shadowPathAnimatable = newValue?.cgPath
-                }
+                NSView.swizzleAnimationForKey()
+                shadowPathAnimatable = newValue?.cgPath
             }
         }
 
@@ -532,7 +523,7 @@
             get { NSView.toRealSelf(self).layer?.innerShadowLayer?.configuration ?? .none() }
             set {
                 wantsLayer = true
-                Self.swizzleAnimationForKey()
+                NSView.swizzleAnimationForKey()
                 NSView.toRealSelf(self).dynamicColors.innerShadow = newValue._resolvedColor
                 if innerShadowLayer == nil {
                     let innerShadowLayer = InnerShadowLayer()
@@ -734,10 +725,78 @@
         
         /// Sets the text for the view’s tooltip.
         @discardableResult
-        func toolTip(_ toolTip: String?) -> Self {
+        public func toolTip(_ toolTip: String?) -> Self {
             self.toolTip = toolTip
             return self
         }
+        
+        /*
+        public enum MouseMoveOption: UInt {
+            case always = 128
+            case inActiveApp = 64
+            case inKeyWindow = 32
+            case whenFirstResponder = 16
+            case never = 0
+            
+            var trackingOption: NSTrackingArea.Options? {
+                self != .never ? NSTrackingArea.Options(rawValue: rawValue) : nil
+            }
+            
+            init?(_ trackingArea: NSTrackingArea) {
+                if let option = [MouseMoveOption.always, .inActiveApp, .inKeyWindow, .whenFirstResponder].first(where: {
+                    trackingArea.options.contains($0.trackingOption!)}) {
+                    self = option
+                } else {
+                    return nil
+                }
+            }
+        }
+                
+        /**
+         A Boolean value that indicates whether the view accepts mouse movement events.
+         
+         The value of this property is `true` when the view has any tracking area  with options `mouseEnteredAndExited` and `mouseMoved`.
+         */
+        public var acceptsMouseMovedEvents: MouseMoveOption {
+            get {
+                if let trackingArea = mouseMovementTrackingArea?.trackingArea, let option = MouseMoveOption(trackingArea) {
+                    return option
+                }
+                if let trackingArea = trackingAreas.first(where: { $0.options.contains([.mouseMoved, .mouseEnteredAndExited]) && $0.options.contains(any: [.activeAlways, .activeInActiveApp, .activeInKeyWindow, .activeWhenFirstResponder])}) {
+                    return MouseMoveOption(trackingArea) ?? .never
+                }
+                return .never
+            }
+            set {
+                guard newValue != acceptsMouseMovedEvents else { return }
+                if newValue != .never {
+                    mouseMovementTrackingArea = TrackingArea(for: self, options: [.mouseMoved, .mouseEnteredAndExited, newValue.trackingOption!])
+                    guard !isMethodReplaced(NSSelectorFromString("updateTrackingAreas")) else { return }
+                    do {
+                        try replaceMethod(
+                            NSSelectorFromString("updateTrackingAreas"),
+                            methodSignature: (@convention(c) (AnyObject, Selector) -> ()).self,
+                            hookSignature: (@convention(block) (AnyObject) -> ()).self
+                        ) { store in { object in
+                            (object as? NSView)?.mouseMovementTrackingArea?.update()
+                            store.original(object, NSSelectorFromString("updateTrackingAreas"))
+                        }
+                        }
+                    } catch {
+                        debugPrint(error)
+                    }
+                } else {
+                    resetMethod(NSSelectorFromString("updateTrackingAreas"))
+                    mouseMovementTrackingArea = nil
+                }
+            }
+        }
+        
+        var mouseMovementTrackingArea: TrackingArea? {
+            get { getAssociatedValue("mouseMovementTrackingArea", initialValue: nil) }
+            set { setAssociatedValue(newValue, key: "mouseMovementTrackingArea") }
+        }
+        */
 
         static func swizzleAnimationForKey() {
             guard didSwizzleAnimationForKey == false else { return }
@@ -763,8 +822,8 @@
         }
 
         static var didSwizzleAnimationForKey: Bool {
-            get { getAssociatedValue(key: "NdidSwizzleAnimationForKey", object: self, initialValue: false) }
-            set { set(associatedValue: newValue, key: "NdidSwizzleAnimationForKey", object: self) }
+            get { getAssociatedValue("NdidSwizzleAnimationForKey", initialValue: false) }
+            set { setAssociatedValue(newValue, key: "NdidSwizzleAnimationForKey") }
         }
         
         @objc private func realSelf() -> NSView { self }
