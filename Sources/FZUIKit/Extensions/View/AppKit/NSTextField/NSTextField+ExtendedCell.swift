@@ -64,64 +64,55 @@ extension NSTextField {
     }
     
     func convertToExtendedTextFieldCell() {
-        if extendedTextFieldCell == nil, let textFieldCell = cell as? NSTextFieldCell {
-            if let layer = layer {
-                let backgroundColor = layer.backgroundColor
-                let border = border
-                let innerShadow = innerShadow
-                let outerShadow = outerShadow
-                let cornerRadius = cornerRadius
-                let cornerCurve = cornerCurve
-                let roundedCorners = roundedCorners
-                let isOpaque = isOpaque
-                let mask = mask
-                let anchorPoint = anchorPoint
-                let transform = transform
-                let transform3D = transform3D
-                let shadowPath = shadowPath
-                let clipsToBounds = clipsToBounds
-                Swift.print(layer.sublayers ?? "nil")
-                do {
-                     let copy = try layer.archiveBasedCopy()
-                    Swift.print(layer.cornerRadius, copy.cornerRadius, layer.masksToBounds, copy.masksToBounds, clipsToBounds)
-                    cell = try textFieldCell.archiveBasedCopy(as: ExtendedTextFieldCell.self)
-                     copy.delegate = self as! any CALayerDelegate
-                     self.layer = copy
-                    Swift.print(self.layer!.cornerRadius, copy.cornerRadius, self.layer!.masksToBounds, copy.masksToBounds, clipsToBounds)
-                } catch {
-                    debugPrint(error)
-                }
-                self.clipsToBounds = true
-                /*
-                self.wantsLayer = true
-                layer.delegate = self as? any CALayerDelegate
-                self.layer = layer
-                self.layer?.backgroundColor = backgroundColor
-                self.border = border
-                self.innerShadow = innerShadow
-                self.outerShadow = outerShadow
-                self.roundedCorners = roundedCorners
-                self.cornerCurve = cornerCurve
-                self.cornerRadius = cornerRadius
-                self.clipsToBounds = clipsToBounds
-                self.isOpaque = isOpaque
-                self.mask = mask
-                self.anchorPoint = anchorPoint
-                self.shadowPath = shadowPath
-                if transform != CGAffineTransformIdentity {
-                    self.transform = transform
-                }
-                if transform3D != CATransform3DIdentity {
-                    self.transform3D = transform3D
-                }
-                 */
-            } else {
-                do {
-                    cell = try textFieldCell.archiveBasedCopy(as: ExtendedTextFieldCell.self)
-                } catch {
-                    debugPrint(error)
-                }
+        guard extendedTextFieldCell == nil, let textFieldCell = cell as? NSTextFieldCell else { return }
+        guard let layer = layer else {
+            do {
+                cell = try textFieldCell.archiveBasedCopy(as: ExtendedTextFieldCell.self)
+            } catch {
+                debugPrint(error)
             }
+            return
+        }
+        do {
+            let convertedCell = try textFieldCell.archiveBasedCopy(as: ExtendedTextFieldCell.self)
+            let backgroundColor = layer.backgroundColor
+            let border = border
+            let innerShadow = innerShadow
+            let outerShadow = outerShadow
+            let cornerRadius = cornerRadius
+            let cornerCurve = cornerCurve
+            let roundedCorners = roundedCorners
+            let isOpaque = isOpaque
+            let mask = mask
+            let anchorPoint = anchorPoint
+            let transform = transform
+            let transform3D = transform3D
+            let shadowPath = shadowPath
+            let clipsToBounds = clipsToBounds
+            cell = convertedCell
+            self.wantsLayer = true
+            layer.delegate = self as? any CALayerDelegate
+            self.layer = layer
+            self.layer?.backgroundColor = backgroundColor
+            self.border = border
+            self.innerShadow = innerShadow
+            self.outerShadow = outerShadow
+            self.roundedCorners = roundedCorners
+            self.cornerCurve = cornerCurve
+            self.cornerRadius = cornerRadius
+            self.clipsToBounds = clipsToBounds
+            self.isOpaque = isOpaque
+            self.mask = mask
+            self.anchorPoint = anchorPoint
+            self.shadowPath = shadowPath
+            if transform != CGAffineTransformIdentity {
+                self.transform = transform
+            }
+            if transform3D != CATransform3DIdentity {
+                self.transform3D = transform3D
+            }
+        } catch {
+            debugPrint(error)
         }
     }
 }
@@ -223,7 +214,7 @@ class ExtendedTextFieldCell: NSTextFieldCell {
         case let .roundedCorners(radius):
             cornerRadius = radius
         case let .roundedCornersRelative(relative):
-            cornerRadius = (cellFrame.height/2.0) * relative.clamped(max: 1.0)
+            cornerRadius = (cellFrame.height/2.0) * relative.clamped(to: 0.0...1.0)
         default:
             break
         }
