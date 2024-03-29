@@ -69,21 +69,44 @@
         }
 
         /// Scrolls the collection view to the top.
-        func scrollToTop() {
-            enclosingScrollView?.scrollToBeginningOfDocument(nil)
+        func scrollToTop(animationDuration: TimeInterval? = nil) {
+            enclosingScrollView?.scrollToTop(animationDuration: animationDuration)
         }
 
         /// Scrolls the collection view to the bottom.
-        func scrollToBottom() {
-            enclosingScrollView?.scrollToEndOfDocument(nil)
+        func scrollToBottom(animationDuration: TimeInterval? = nil) {
+            enclosingScrollView?.scrollToBottom(animationDuration: animationDuration)
+        }
+        
+        /// Scrolls the collection view to the left.
+        func scrollToLeft(animationDuration: TimeInterval? = nil) {
+            enclosingScrollView?.scrollToLeft(animationDuration: animationDuration)
+        }
+        
+        /// Scrolls the collection view to the right.
+        func scrollToRight(animationDuration: TimeInterval? = nil) {
+            enclosingScrollView?.scrollToRight(animationDuration: animationDuration)
+        }
+        
+        /**
+         Changes the collection view layout.
+         
+         - Parameters:
+            - layout: The new layout object for the collection view.
+            - animated: A Boolean value indicating whether the collection view should animate changes from the current layout to the new layout.
+            - completion: The completion handler that gets called when the layout transition finishes
+         */
+        func setCollectionViewLayout(_ layout: NSCollectionViewLayout, animated: Bool, completion: (() -> Void)? = nil) {
+            setCollectionViewLayout(layout, animationDuration: animated ? 0.2 : 0.0, completion: completion)
         }
 
         /**
          Changes the collection view layout animated.
+         
          - Parameters:
-            - layout: The new collection view layout.
-            - animationDuration: The animation duration.
-            - completion: The completion handler that gets called when the animation is completed.
+            - layout: The new layout object for the collection view.
+            - animationDuration: The duration for the collection view animating changes from the current layout to the new layout. Specify a value of `0.0` to make the change without animations.
+            - completion: The completion handler that gets called when the layout transition finishes
          */
         func setCollectionViewLayout(_ layout: NSCollectionViewLayout, animationDuration: CGFloat, completion: (() -> Void)? = nil) {
             if animationDuration > 0.0 {
@@ -100,14 +123,24 @@
         /**
          The point at which the origin of the document view is offset from the origin of the scroll view.
 
-         The default value is `zero`. The value can be animated via `animator()`.
+         The value can be animated via `animator()`.
          */
         @objc var contentOffset: CGPoint {
             get { enclosingScrollView?.contentOffset ?? .zero }
-            set {
-                NSView.swizzleAnimationForKey()
-                enclosingScrollView?.contentOffset = newValue
-            }
+            set { enclosingScrollView?.contentOffset = newValue }
+        }
+        
+        /**
+         The fractional content offset on a range between `0.0` and `1.0`.
+         
+         - A value of `CGPoint(x:0, y:0)` indicates the document view is at the bottom left.
+         - A value of `CGPoint(x:1, y:1)` indicates the document view is at the top right.
+
+         The value can be animated via `animator()`.
+         */
+        @objc var contentOffsetFractional: CGPoint {
+            get { enclosingScrollView?.contentOffsetFractional ?? .zero }
+            set { enclosingScrollView?.contentOffsetFractional = newValue }
         }
 
         /**
@@ -116,32 +149,44 @@
          The value can be animated via `animator()`.
          */
         @objc var documentSize: CGSize {
-            get { enclosingScrollView?.documentView?.frame.size ?? NSSize.zero }
-            set {
-                NSView.swizzleAnimationForKey()
-                enclosingScrollView?.documentView?.setFrameSize(newValue)
-            }
+            get { enclosingScrollView?.documentSize ?? .zero }
+            set { enclosingScrollView?.documentSize = newValue }
         }
-    }
-
-    public extension NSCollectionView {
+        
         /// A saved scroll position.
         struct SavedScrollPosition {
-            let displayingIndexPaths: [IndexPath]
+            let indexPaths: [IndexPath]
+            let position: ScrollPosition
         }
 
-        /// Saves the current scroll position.
+        /**
+         Returns a value representing the current scroll position.
+         
+         To restore the saved scroll position, use ``restoreScrollPosition(_:)``.
+         
+         - Returns: The saved scroll position.
+         */
         func saveScrollPosition() -> SavedScrollPosition {
-            SavedScrollPosition(displayingIndexPaths: displayingIndexPaths())
+            let indexPaths = displayingIndexPaths()
+            if contentOffset.y <= 0.0, indexPaths.contains(IndexPath(item: 0, section: 0)) {
+                return SavedScrollPosition(indexPaths: indexPaths, position: .nearestHorizontalEdge)
+            }
+            return SavedScrollPosition(indexPaths: indexPaths, position: (frame.height >= superview?.frame.height ?? frame.height) ? .centeredVertically : .centeredHorizontally)
         }
 
         /**
          Restores the specified saved scroll position.
+         
+         To save a scroll position, use ``saveScrollPosition()``.
 
          - Parameter scrollPosition: The scroll position to restore.
          */
         func restoreScrollPosition(_ scrollPosition: SavedScrollPosition) {
-            scrollToItems(at: .init(scrollPosition.displayingIndexPaths), scrollPosition: [])
+            if scrollPosition.position == .nearestHorizontalEdge {
+                scrollToItems(at: .init(scrollPosition.indexPaths), scrollPosition: .nearestHorizontalEdge)
+            } else {
+                scrollToItems(at: .init(scrollPosition.indexPaths), scrollPosition: (frame.height >= superview?.frame.height ?? frame.height) ? .centeredVertically : .centeredHorizontally)
+            }
         }
     }
 

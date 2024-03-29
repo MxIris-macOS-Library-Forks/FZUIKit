@@ -47,9 +47,10 @@ import SwiftUI
     public typealias NSUIImageView = NSImageView
     public typealias NSUIScrollView = NSScrollView
     public typealias NSUITextView = NSTextView
-    public typealias NSUIPanGestureRecognizer = NSPanGestureRecognizer
     public typealias NSUIScreen = NSScreen
     public typealias NSUIGestureRecognizer = NSGestureRecognizer
+    public typealias NSUIMagnificationGestureRecognizer = NSMagnificationGestureRecognizer
+    public typealias NSUIPanGestureRecognizer = NSPanGestureRecognizer
     public typealias NSUIButton = NSButton
 
 #elseif canImport(UIKit)
@@ -96,5 +97,7 @@ import SwiftUI
     public typealias NSUIScreen = UIScreen
     public typealias NSUIGestureRecognizer = UIGestureRecognizer
     public typealias NSUIButton = UIButton
-
+    #if os(iOS)
+    public typealias NSUIMagnificationGestureRecognizer = UIPinchGestureRecognizer
+    #endif
 #endif
