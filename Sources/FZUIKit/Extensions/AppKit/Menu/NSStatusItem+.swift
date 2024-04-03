@@ -46,6 +46,13 @@
             }
         }
         
+        /// The handler that provides the menu that is displayed when the item is right clicked.
+        public var rightClickMenuProvider: (()->(NSMenu?))? {
+            get { getAssociatedValue("rightClickMenuProvider", initialValue: nil) }
+            set { setAssociatedValue(newValue, key: "rightClickMenuProvider")
+                updateAction()
+            }
+        }
         
         
         /// The mouse holding state.
@@ -86,7 +93,7 @@
                 mask.insert(.leftMouseUp)
             }
 
-            if onRightClick != nil || rightClickMenu != nil {
+            if onRightClick != nil || rightClickMenu != nil || rightClickMenuProvider != nil {
                 mask.insert(.rightMouseUp)
             }
             
@@ -99,7 +106,7 @@
             }
 
             button?.sendAction(on: mask)
-            if onClick != nil || onRightClick != nil || onMouseHold != nil || onRightMouseHold != nil || rightClickMenu != nil {
+            if onClick != nil || onRightClick != nil || onMouseHold != nil || onRightMouseHold != nil || rightClickMenu != nil || rightClickMenuProvider != nil {
                 button?.actionBlock = { [weak self] button in
                     guard let self = self, let event = NSApp.currentEvent else { return }
                     switch event.type {
@@ -113,7 +120,7 @@
                     case .rightMouseUp:
                         self.onRightMouseHold?(.ended)
                         self.onRightClick?()
-                        if let rightClickMenu = self.rightClickMenu {
+                        if let rightClickMenu = self.rightClickMenu ?? self.rightClickMenuProvider?() {
                             self.perform(NSSelectorFromString("popUpStatusItemMenu:"), with: rightClickMenu)
                         }
                     default: break
