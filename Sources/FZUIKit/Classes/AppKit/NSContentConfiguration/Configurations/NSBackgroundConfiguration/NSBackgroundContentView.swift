@@ -40,8 +40,11 @@
         
         public override func layout() {
             super.layout()
-            contentView.frame.size.width = appliedConfiguration.insets.width
-            contentView.frame.size.height = appliedConfiguration.insets.height
+            contentView.frame.origin.x = appliedConfiguration.insets.leading
+            contentView.frame.origin.y = appliedConfiguration.insets.bottom
+            contentView.frame.size.width = frame.size.width - appliedConfiguration.insets.width
+            contentView.frame.size.height = frame.size.height - appliedConfiguration.insets.height
+            contentView.clipsToBounds = false
             view?.frame.size = contentView.bounds.size
             imageView.frame.size = contentView.bounds.size
             imageView.clipsToBounds = true
@@ -83,7 +86,7 @@
 
             imageView.imageScaling = appliedConfiguration.imageScaling
 
-            contentView.backgroundColor = appliedConfiguration._resolvedColor
+            contentView.backgroundColor = appliedConfiguration.resolvedColor()
             contentView.visualEffect = appliedConfiguration.visualEffect
             contentView.cornerRadius = appliedConfiguration.cornerRadius
 
@@ -93,8 +96,8 @@
             
             contentView.frame.origin.x = appliedConfiguration.insets.leading
             contentView.frame.origin.y = appliedConfiguration.insets.bottom
-            contentView.frame.size.width = appliedConfiguration.insets.width
-            contentView.frame.size.height = appliedConfiguration.insets.height
+            contentView.frame.size.width = frame.size.width - appliedConfiguration.insets.width
+            contentView.frame.size.height = frame.size.height - appliedConfiguration.insets.height
             view?.frame.size = contentView.bounds.size
         }
 
