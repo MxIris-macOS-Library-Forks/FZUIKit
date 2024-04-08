@@ -14,6 +14,7 @@ import FZSwiftUtils
 #endif
 import UniformTypeIdentifiers
 
+
 #if os(macOS)
     public extension NSImage {
         /// A Boolean value that indicates whether the image is a symbol.
@@ -154,46 +155,54 @@ import UniformTypeIdentifiers
             value(forProperty: .frameCount) as? Int ?? 0
         }
         
-        /// Returns the frame at the specified index.
-        func frame(at index: Int) -> CGImageFrame? {
+        /// Returns the image frame at the specified index.
+        func frame(at index: Int) -> ImageFrame? {
             currentFrame = index
-            guard let image = cgImage else { return nil }
-            return CGImageFrame(image, currentFrameDuration)
+            guard let image = cgImage?.nsUIImage else { return nil }
+            return ImageFrame(image, currentFrameDuration)
         }
         
         /// Returns the frame at the specified index.
-        subscript(index: Int) -> CGImageFrame? {
+        subscript(index: Int) -> ImageFrame? {
             frame(at: index)
         }
         
         /// The total duration (in seconds) of all frames for an animated GIF image, or `0` if the image isn't a GIF.
         var duration: TimeInterval {
-            let current = currentFrame
-            var duration: TimeInterval = 0.0
-            (0..<frameCount).forEach({
-                currentFrame = $0
-                duration += currentFrameDuration
-            })
-            currentFrame = current
-            return duration
+            get {
+                let current = currentFrame
+                var duration: TimeInterval = 0.0
+                (0..<frameCount).forEach({
+                    currentFrame = $0
+                    duration += currentFrameDuration
+                })
+                currentFrame = current
+                return duration
+            }
+            set {
+                let count = frameCount
+                let duration = newValue / Double(count)
+                let current = currentFrame
+                (0..<count).forEach({
+                    currentFrame = $0
+                    currentFrameDuration = duration
+                })
+                currentFrame = current
+            }
         }
 
         /// The the current frame for an animated GIF image, or `0` if the image isn't a GIF.
         var currentFrame: Int {
             get { (value(forProperty: .currentFrame) as? Int) ?? 0 }
-            set {
-                guard newValue < frameCount else { return }
-                setProperty(.currentFrame, withValue: newValue)
-            }
+            set { setProperty(.currentFrame, withValue: newValue.clamped(to: 0...frameCount-1)) }
         }
 
         /// The duration (in seconds) of the current frame for an animated GIF image, or `0` if the image isn't a GIF.
         var currentFrameDuration: TimeInterval {
             get { value(forProperty: .currentFrameDuration) as? TimeInterval ?? 0.0 }
             set {
-                if value(forProperty: .currentFrameDuration) != nil {
-                    setProperty(.currentFrameDuration, withValue: newValue)
-                }
+                guard value(forProperty: .currentFrameDuration) != nil else { return }
+                setProperty(.currentFrameDuration, withValue: newValue)
             }
         }
 
@@ -201,9 +210,8 @@ import UniformTypeIdentifiers
         var loopCount: Int {
             get { value(forProperty: .loopCount) as? Int ?? 0 }
             set {
-                if value(forProperty: .loopCount) != nil {
-                    setProperty(.loopCount, withValue: newValue)
-                }
+                guard value(forProperty: .loopCount) != nil else { return }
+                setProperty(.loopCount, withValue: newValue)
             }
         }
     }
@@ -226,14 +234,14 @@ import UniformTypeIdentifiers
         /**
          Returns a data object that contains the specified image in TIFF format.
 
-         - Returns: A data object containing the TIFF data, or `nil` if there was a problem generating the data. This function may return `nil` if the image has no data or if the underlying CGImageRef contains data in an unsupported bitmap format.
+         - Returns: A data object containing the TIFF data, or `nil` if there was a problem generating the data. This function may return `nil` if the image has no data or if the underlying `CGImageRef` contains data in an unsupported bitmap format.
          */
         func tiffData() -> Data? { tiffRepresentation }
 
         /**
          Returns a data object that contains the specified image in PNG format.
 
-         - Returns: A data object containing the PNG data, or `nil` if there was a problem generating the data. This function may return `nil` if the image has no data or if the underlying CGImageRef contains data in an unsupported bitmap format.
+         - Returns: A data object containing the PNG data, or `nil` if there was a problem generating the data. This function may return `nil` if the image has no data or if the underlying `CGImageRef` contains data in an unsupported bitmap format.
          */
         func pngData() -> Data? { bitmapImageRep?.pngData }
 
