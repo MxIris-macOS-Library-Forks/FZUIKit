@@ -13,8 +13,7 @@
  
         /// A Boolean value that indicates whether the image is animated (e.g. a GIF).
         var isAnimated: Bool {
-            guard framesCount > 1 else { return false }
-            return bitmapImageRep?.value(forProperty: .currentFrameDuration) != nil
+            framesCount > 1 && bitmapImageRep?.value(forProperty: .currentFrameDuration) != nil
         }
 
         /// The number of frames of an animated (e.g. GIF) image.
@@ -25,14 +24,7 @@
         /// The animation duration of an animated (e.g. GIF) image.
         var animationDuration: TimeInterval {
             get { bitmapImageRep?.duration ?? 0.0 }
-            set {
-                guard newValue != animationDuration, let bitmapImageRep = bitmapImageRep else { return }
-                let images = bitmapImageRep.getImages().compactMap({$0.nsImage})
-                guard images.count > 1 else { return }
-                guard let newBitmapImageRep = NSImage.animatedImage(images: images, duration: newValue, loopCount: bitmapImageRep.loopCount)?.bitmapImageRep else { return }
-                addRepresentation(newBitmapImageRep)
-                removeRepresentation(bitmapImageRep)
-            }
+            set { bitmapImageRep?.duration = newValue }
         }
 
         /**

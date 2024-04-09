@@ -136,17 +136,16 @@
             self.init(animated: images, duration: duration, loopCount: loopCount)
         }
         
-        internal static func gifData(from images: [NSUIImage], duration: TimeInterval, loopCount: Int = 0) -> Data? {
+        static func gifData(from images: [NSUIImage], duration: TimeInterval, loopCount: Int = 0) -> Data? {
             let frameDuration = duration / TimeInterval(images.count)
             return gifData(from: images, frameDuration: frameDuration, loopCount: loopCount)
         }
 
         internal static func gifData(from images: [NSUIImage], frameDuration: TimeInterval, loopCount: Int = 0) -> Data? {
             let data = NSMutableData()
-            let frameDuration = frameDuration * 2
-            guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, kUTTypePNG, images.count, nil) else { return nil }
+            guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, kUTTypeGIF, images.count, nil) else { return nil }
             let gifProperties = [kCGImagePropertyGIFDictionary as String: [kCGImagePropertyGIFLoopCount as String: loopCount]].cfDictionary
-            let frameProperties = [kCGImagePropertyGIFDictionary as String: [kCGImagePropertyGIFDelayTime as String: frameDuration]].cfDictionary
+            let frameProperties = [kCGImagePropertyGIFDictionary as String: [kCGImagePropertyGIFDelayTime as String: frameDuration, kCGImagePropertyGIFUnclampedDelayTime as String: frameDuration]].cfDictionary
             CGImageDestinationSetProperties(destination, gifProperties)
             for image in images.compactMap({$0.cgImage}) {
                 CGImageDestinationAddImage(destination, image, frameProperties)

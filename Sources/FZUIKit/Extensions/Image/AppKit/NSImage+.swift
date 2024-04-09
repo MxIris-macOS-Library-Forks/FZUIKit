@@ -17,13 +17,7 @@ import UniformTypeIdentifiers
 
 #if os(macOS)
     public extension NSImage {
-        /// A Boolean value that indicates whether the image is a symbol.
-        @available(macOS 11.0, *)
-        var isSymbolImage: Bool {
-            (self.value(forKey: "_isSymbolImage") as? Bool) ??
-                (symbolName != nil)
-        }
-
+        
         convenience init(cgImage: CGImage) {
             self.init(cgImage: cgImage, size: .zero)
         }
@@ -39,12 +33,19 @@ import UniformTypeIdentifiers
             }
         }
         
+        /// A Boolean value that indicates whether the image is a symbol.
+        @available(macOS 11.0, *)
+        var isSymbolImage: Bool {
+            value(forKey: "_isSymbolImage") as? Bool ?? (symbolName != nil)
+        }
+        
         /// Returns the image types supported by `NSImage`.
         @available(macOS 11.0, *)
         static var imageContentTypes: [UTType] {
             imageTypes.compactMap({UTType($0)})
         }
 
+        /// A `cgImage` represenation of the image.
         var cgImage: CGImage? {
             if let image = self.cgImage(forProposedRect: nil, context: nil, hints: nil) {
                 return image
@@ -54,18 +55,29 @@ import UniformTypeIdentifiers
             return CGImageSourceCreateImageAtIndex(sourceData, 0, nil)
         }
 
+        /// A `CIImage` represenation of the image.
         var ciImage: CIImage? {
             tiffRepresentation(using: .none, factor: 0).flatMap(CIImage.init)
         }
 
+        /**
+         Creates an image source that reads the image.
+
+         - Note: Loading an animated image takes time as each image frame is loaded initially. It's recommended to parse the animation properties and frames via the image's `NSBitmapImageRep` representation.
+         */
         var cgImageSource: CGImageSource? {
-            if let data = tiffRepresentation {
-                return CGImageSourceCreateWithData(data as CFData, nil)
-            }
-            return nil
+            let images = representations.compactMap({$0 as? NSBitmapImageRep}).flatMap({$0.getImages()})
+            guard !images.isEmpty else { return nil }
+            let types = Set(images.compactMap { $0.utType })
+            let outputType = types.count == 1 ? (types.first ?? kUTTypeTIFF) : kUTTypeTIFF
+            guard let mutableData = CFDataCreateMutable(nil, 0), let destination = CGImageDestinationCreateWithData(mutableData, outputType, images.count, nil) else { return nil }
+            images.forEach { CGImageDestinationAddImage(destination, $0, nil) }
+            guard CGImageDestinationFinalize(destination) else { return nil }
+            return CGImageSourceCreateWithData(mutableData, nil)
         }
 
         typealias ImageOrientation = ImageSource.ImageProperties.Orientation
+        /// The image orientation.
         var orientation: ImageOrientation {
             ImageSource(image: self)?.properties()?.orientation ?? .up
         }
@@ -84,8 +96,8 @@ import UniformTypeIdentifiers
          */
         func withTintColor(_ color: NSColor) -> NSImage {
             if #available(macOS 12.0, *) {
-                if self.isSymbolImage {
-                    return self.withSymbolConfiguration(.init(paletteColors: [color])) ?? self
+                if isSymbolImage {
+                    return withSymbolConfiguration(.init(paletteColors: [color])) ?? self
                 }
             }
 
@@ -137,85 +149,6 @@ import UniformTypeIdentifiers
         }
     }
 
-    public extension NSBitmapImageRep {
-        /// A data object that contains the representation in JPEG format.
-        var pngData: Data? { representation(using: .png, properties: [:]) }
-
-        /// A data object that contains the representation in JPEG format.
-        var tiffData: Data? { representation(using: .tiff, properties: [:]) }
-
-        /// A data object that contains the representation in JPEG format.
-        var jpegData: Data? { representation(using: .jpeg, properties: [:]) }
-
-        /// A data object that contains the representation in JPEG format with the specified compressio factor.
-        func jpegData(compressionFactor _: Double) -> Data? { representation(using: .tiff, properties: [:]) }
-
-        /// The number of frames in an animated GIF image, or `0` if the image isn't a GIF.
-        var frameCount: Int {
-            value(forProperty: .frameCount) as? Int ?? 0
-        }
-        
-        /// Returns the image frame at the specified index.
-        func frame(at index: Int) -> ImageFrame? {
-            currentFrame = index
-            guard let image = cgImage?.nsUIImage else { return nil }
-            return ImageFrame(image, currentFrameDuration)
-        }
-        
-        /// Returns the frame at the specified index.
-        subscript(index: Int) -> ImageFrame? {
-            frame(at: index)
-        }
-        
-        /// The total duration (in seconds) of all frames for an animated GIF image, or `0` if the image isn't a GIF.
-        var duration: TimeInterval {
-            get {
-                let current = currentFrame
-                var duration: TimeInterval = 0.0
-                (0..<frameCount).forEach({
-                    currentFrame = $0
-                    duration += currentFrameDuration
-                })
-                currentFrame = current
-                return duration
-            }
-            set {
-                let count = frameCount
-                let duration = newValue / Double(count)
-                let current = currentFrame
-                (0..<count).forEach({
-                    currentFrame = $0
-                    currentFrameDuration = duration
-                })
-                currentFrame = current
-            }
-        }
-
-        /// The the current frame for an animated GIF image, or `0` if the image isn't a GIF.
-        var currentFrame: Int {
-            get { (value(forProperty: .currentFrame) as? Int) ?? 0 }
-            set { setProperty(.currentFrame, withValue: newValue.clamped(to: 0...frameCount-1)) }
-        }
-
-        /// The duration (in seconds) of the current frame for an animated GIF image, or `0` if the image isn't a GIF.
-        var currentFrameDuration: TimeInterval {
-            get { value(forProperty: .currentFrameDuration) as? TimeInterval ?? 0.0 }
-            set {
-                guard value(forProperty: .currentFrameDuration) != nil else { return }
-                setProperty(.currentFrameDuration, withValue: newValue)
-            }
-        }
-
-        /// The number of loops to make when animating a GIF image, or `0` if the image isn't a GIF.
-        var loopCount: Int {
-            get { value(forProperty: .loopCount) as? Int ?? 0 }
-            set {
-                guard value(forProperty: .loopCount) != nil else { return }
-                setProperty(.loopCount, withValue: newValue)
-            }
-        }
-    }
-
     public extension NSImage {
         /// The bitmap representation of the image
         var bitmapImageRep: NSBitmapImageRep? {
@@ -237,7 +170,7 @@ import UniformTypeIdentifiers
          - Returns: A data object containing the TIFF data, or `nil` if there was a problem generating the data. This function may return `nil` if the image has no data or if the underlying `CGImageRef` contains data in an unsupported bitmap format.
          */
         func tiffData() -> Data? { tiffRepresentation }
-
+        
         /**
          Returns a data object that contains the specified image in PNG format.
 
@@ -262,9 +195,5 @@ import UniformTypeIdentifiers
         func jpegData(compressionFactor factor: Double) -> Data? {
             bitmapImageRep?.jpegData(compressionFactor: factor)
         }
-    }
-
-    extension Data {
-        var bitmap: NSBitmapImageRep? { NSBitmapImageRep(data: self) }
     }
 #endif
