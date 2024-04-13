@@ -215,7 +215,7 @@
             }
             if hasKeyboardFocus, endEditingOnOutsideClick {
                 guard mouseDownMonitor == nil else { return }
-                mouseDownMonitor = NSEvent.monitor(.leftMouseDown) { [weak self] event in
+                mouseDownMonitor = NSEvent.monitorLocal(.leftMouseDown) { [weak self] event in
                     guard let self = self, self.endEditingOnOutsideClick, self.hasKeyboardFocus else { return event }
                     if self.bounds.contains(event.location(in: self)) == false {
                         self.updateString()
@@ -328,6 +328,7 @@
                             methodSignature: (@convention(c) (AnyObject, Selector, NSTextView, Selector) -> (Bool)).self,
                             hookSignature: (@convention(block) (AnyObject, NSTextView, Selector) -> (Bool)).self
                         ) { store in { object, textView, selector in
+                            Swift.print("check", object as? NSTextField != nil)
                             if let textField = object as? NSTextField {
                                 switch selector {
                                 case #selector(NSControl.cancelOperation(_:)):
@@ -335,13 +336,13 @@
                                     case .endEditingAndReset:
                                         textField.stringValue = textField.editStartString
                                         textField.adjustFontSize()
-                                        textField.resignFirstResponding()
+                                        textView.resignFirstResponding()
                                         return true
                                     case .endEditing:
                                         if textField.editingHandlers.shouldEdit?(textField.stringValue) == false {
                                             return false
                                         } else {
-                                            textField.resignFirstResponding()
+                                            textView.resignFirstResponding()
                                             return true
                                         }
                                     case .none:
@@ -353,7 +354,7 @@
                                         if textField.editingHandlers.shouldEdit?(textField.stringValue) == false {
                                             return false
                                         } else {
-                                            textField.resignFirstResponding()
+                                            textView.resignFirstResponding()
                                             return true
                                         }
                                     case .none: break

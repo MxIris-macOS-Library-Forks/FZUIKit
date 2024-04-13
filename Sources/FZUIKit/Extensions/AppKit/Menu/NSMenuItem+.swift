@@ -14,45 +14,44 @@
     public extension NSMenuItem {
         /**
          Initializes and returns a menu item with the specified title.
-         - Parameter title: The title of the menu item.
+         
+         - Parameters:
+            - title: The title of the menu item.
+            - action: The action handler.
          - Returns: An instance of `NSMenuItem`.
          */
-        convenience init(_ title: String) {
-            self.init(title: title)
-
-        }
-
-        /**
-         Initializes and returns a menu item with the specified title.
-         - Parameter title: The title of the menu item.
-         - Returns: An instance of `NSMenuItem`.
-         */
-        convenience init(title: String) {
+        convenience init(_ title: String, action: ActionBlock? = nil) {
             self.init(title: title, action: nil, keyEquivalent: "")
-            isEnabled = true
+            actionBlock = action
         }
         
         /**
          Initializes and returns a menu item with the specified title.
+         
          - Parameters:
             - title: The title of the menu item.
             - action: The action handler.
          - Returns: An instance of `NSMenuItem`.
          */
-        convenience init(_ title: String, action: @escaping ActionBlock) {
-            self.init(title: title, action: action)
+        convenience init(_ title: NSAttributedString, action: ActionBlock? = nil) {
+            self.init("", action: action)
+            attributedTitle = title
         }
-
+        
         /**
-         Initializes and returns a menu item with the specified title.
+         Initializes and returns a menu item with the specified localized title.
          - Parameters:
-            - title: The title of the menu item.
+            - localizedTitle: The localized title of the menu item.
+            - table: The table of the localization.
+            - bundle: The bundle of the localization.
+            - locale: The language.
+            - comment: The comment of the localization.
             - action: The action handler.
          - Returns: An instance of `NSMenuItem`.
          */
-        convenience init(title: String, action: @escaping ActionBlock) {
-            self.init(title: title)
-            actionBlock = action
+        @available(macOS 12, *)
+        convenience init(_ localizedTitle: String.LocalizationValue, table: String? = nil, bundle: Bundle? = nil, locale: Locale = .current, comment: StaticString? = nil, action: ActionBlock? = nil) {
+            self.init(String(localized: localizedTitle, table: table, bundle: bundle, locale: locale, comment: comment), action: action)
         }
 
         /**
@@ -60,25 +59,13 @@
          - Parameters:
             - title: The title of the menu item.
             - image: The image of the menu item.
+            - action: The action handler.
          - Returns: An instance of `NSMenuItem`.
          */
-        convenience init(title: String? = nil, image: NSImage) {
-            self.init(title: title ?? "")
+        convenience init(_ title: String? = nil, image: NSImage, action: ActionBlock? = nil) {
+            self.init(title ?? "", action: action)
             self.image = image
         }
-        
-        /**
-         Initializes and returns a menu item with the specified image.
-         - Parameters:
-            - title: The title of the menu item.
-            - image: The image of the menu item.
-            - action: The action handler.
-         - Returns: An instance of `NSMenuItem`.
-         */
-        convenience init(title: String? = nil, image: NSImage, action: @escaping ActionBlock) {
-            self.init(title: title, image: image)
-            actionBlock = action
-        }
 
         /**
          Initializes and returns a menu item with the view.
@@ -87,28 +74,13 @@
             - title: The title of the menu item.
             - view: The view of the menu item.
             - showsHighlight: A Boolean value that indicates whether menu item should highlight on interaction.
+            - action: The action handler.
 
          - Returns: An instance of `NSMenuItem`.
          */
-        convenience init(title: String? = nil, view: NSView, showsHighlight: Bool = true) {
-            self.init(title: title ?? "")
+        convenience init(_ title: String? = nil, view: NSView, showsHighlight: Bool = true, action: ActionBlock? = nil) {
+            self.init(title ?? "", action: action)
             self.view(view, showsHighlight: showsHighlight)
-        }
-        
-        /**
-         Initializes and returns a menu item with the view.
-
-         - Parameters:
-            - title: The title of the menu item.
-            - view: The view of the menu item.
-            - showsHighlight: A Boolean value that indicates whether menu item should highlight on interaction.
-            - action: The action handler.
-
-         - Returns: An instance of `NSMenuItem`.
-         */
-        convenience init(title: String? = nil, view: NSView, showsHighlight: Bool = true, action: @escaping ActionBlock) {
-            self.init(title: title, view: view, showsHighlight: showsHighlight)
-            actionBlock = action
         }
     
         /**
@@ -118,11 +90,12 @@
             - title: The title of the menu item.
             - view: The view of the menu item.
             - showsHighlight: A Boolean value that indicates whether menu item should highlight on interaction.
+            - action: The action handler.
 
          - Returns: An instance of `NSMenuItem`.
          */
-        convenience init<V: View>(title: String? = nil, view: V, showsHighlight: Bool = true) {
-            self.init(title: title ?? "")
+        convenience init<V: View>(_ title: String? = nil, view: V, showsHighlight: Bool = true, action: ActionBlock? = nil) {
+            self.init(title ?? "", action: action)
             self.view(view, showsHighlight: showsHighlight)
         }
         
@@ -137,23 +110,8 @@
 
          - Returns: An instance of `NSMenuItem`.
          */
-        convenience init<V: View>(title: String? = nil, view: V, showsHighlight: Bool = true, action: @escaping ActionBlock) {
-            self.init(title: title, view: view, showsHighlight: showsHighlight)
-            actionBlock = action
-        }
-        
-        /**
-         Initializes and returns a menu item with the `SwiftUI` view.
-
-         - Parameters:
-            - title: The title of the menu item.
-            - view: The view of the menu item.
-            - showsHighlight: A Boolean value that indicates whether menu item should highlight on interaction.
-
-         - Returns: An instance of `NSMenuItem`.
-         */
-        convenience init<V: View>(title: String? = nil, @ViewBuilder view: () -> V, showsHighlight: Bool = true) {
-            self.init(title: title, view: view(), showsHighlight: showsHighlight)
+        convenience init<V: View>(_ title: String? = nil, @ViewBuilder view: () -> V, showsHighlight: Bool = true, action: ActionBlock? = nil) {
+            self.init(title, view: view(), showsHighlight: showsHighlight, action: action)
         }
 
         /**
@@ -165,10 +123,8 @@
 
          - Returns: An instance of `NSMenuItem`.
          */
-        convenience init(title: String,
-                         @MenuBuilder items: () -> [NSMenuItem])
-        {
-            self.init(title: title)
+        convenience init(_ title: String, @MenuBuilder items: () -> [NSMenuItem]){
+            self.init(title)
             submenu = NSMenu(title: "", items: items())
         }
         
@@ -415,7 +371,6 @@ public extension NSMenuItem {
             item.image = image
             menu.addItem(item)
         }
-        Swift.print("mmm", menu.items)
         paletteItem.submenu = menu
         return paletteItem
     }
