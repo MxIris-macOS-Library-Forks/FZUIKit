@@ -245,6 +245,7 @@ open class ImageView: NSControl {
         if animationPlayback == .onMouseClick, overlayContentView.frame.contains(event.location(in: self)) {
             toggleAnimating()
         }
+        super.mouseDown(with: event)
     }
     
     var currentImageIndex = 0 {

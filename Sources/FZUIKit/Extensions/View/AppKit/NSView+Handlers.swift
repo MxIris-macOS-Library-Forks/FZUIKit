@@ -115,7 +115,21 @@ extension NSView {
             observe(\.superview, handler: \.viewHandlers.superview)
             observe(\.window?.screen, handler: \.viewHandlers.screen)
             
+            if viewHandlers.isLiveResizing != nil {
+                setupLiveResizingObservation()
+            }
             
+            if windowHandlers.isLiveResizing != nil {
+                if  viewObserver?.isObserving(\.window?.inLiveResize) == false {
+                    NSWindow.isLiveResizeObservable = true
+                    viewObserver?.add(\.window?.inLiveResize) { [weak self] _, new in
+                        guard let self = self, let new = new else { return }
+                        self.windowHandlers.isLiveResizing?(new)
+                    }
+                }
+            } else {
+                viewObserver?.remove(\.window?.inLiveResize)
+            }
             
             if windowHandlers.isKey != nil {
                 if  viewObserver?.isObserving(\.window?.isKey) == false {
@@ -161,6 +175,147 @@ extension NSView {
         } else {
             viewObserver = nil
         }
+    }
+    
+    /**
+     A Boolean value that indicates whether the view is currently being resized by the user.
+     
+     The value is `KVO` observable.
+     
+     - Note: To be able to observe the value, you have to access the property once.
+     */
+   @objc dynamic public internal(set) var isLiveResizing: Bool {
+        get {
+            setupLiveResizingObservation()
+            return getAssociatedValue("isLiveResizing", initialValue: false)
+        }
+       set {
+           setAssociatedValue(newValue, key: "isLiveResizing")
+           viewHandlers.isLiveResizing?(newValue)
+       }
+    }
+    
+    func setupLiveResizingObservation() {
+        guard !isMethodReplaced(#selector(NSView.viewWillStartLiveResize)) else { return  }
+        do {
+           try replaceMethod(
+           #selector(NSView.viewWillStartLiveResize),
+           methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
+           hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
+               object in
+               (object as? NSView)?.isLiveResizing = true
+               store.original(object, #selector(NSView.viewWillStartLiveResize))
+               }
+           }
+            try replaceMethod(
+            #selector(NSView.viewDidEndLiveResize),
+            methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
+            hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
+                object in
+                (object as? NSView)?.isLiveResizing = false
+                store.original(object, #selector(NSView.viewDidEndLiveResize))
+                }
+            }
+        } catch {
+           // handle error
+           debugPrint(error)
+        }
+    }
+    
+    /// A Boolean value that indicates whether the property `inLiveResize` is KVO observable.
+    public static var isLiveResizingObservable: Bool {
+        get { isMethodReplaced(#selector(NSView.viewWillStartLiveResize)) }
+        set {
+            guard newValue != isLiveResizingObservable else { return }
+            if newValue {
+                do {
+                   try replaceMethod(
+                   #selector(NSView.viewWillStartLiveResize),
+                   methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
+                   hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
+                       object in
+                       (object as? NSView)?.willChangeValue(for: \.inLiveResize)
+                       (object as? NSView)?._inLiveResize = true
+                       (object as? NSView)?.didChangeValue(for: \.inLiveResize)
+                       (object as? NSView)?._inLiveResize = nil
+                       store.original(object, #selector(NSView.viewWillStartLiveResize))
+                       }
+                   }
+                    try replaceMethod(
+                    #selector(NSView.viewDidEndLiveResize),
+                    methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
+                    hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
+                        object in
+                        (object as? NSView)?._inLiveResize = true
+                        (object as? NSView)?.willChangeValue(for: \.inLiveResize)
+                        (object as? NSView)?._inLiveResize = nil
+                        (object as? NSView)?.didChangeValue(for: \.inLiveResize)
+                        store.original(object, #selector(NSView.viewDidEndLiveResize))
+                        }
+                    }
+                    try replaceMethod(
+                        #selector(getter: NSView.inLiveResize),
+                    methodSignature: (@convention(c)  (AnyObject, Selector) -> (Bool)).self,
+                    hookSignature: (@convention(block)  (AnyObject) -> (Bool)).self) { store in {
+                        object in
+                        (object as? NSView)?._inLiveResize ?? store.original(object,#selector(getter: NSView.inLiveResize))
+                        }
+                    }
+                } catch {
+                   debugPrint(error)
+                }
+            } else {
+                resetMethod(#selector(NSView.viewWillStartLiveResize))
+                resetMethod(#selector(NSView.viewDidEndLiveResize))
+                resetMethod(#selector(getter: NSView.inLiveResize))
+            }
+        }
+    }
+    
+    static func setupLiveResizingObservation() {
+        guard !isMethodReplaced(#selector(NSView.viewWillStartLiveResize)) else { return  }
+        do {
+           try replaceMethod(
+           #selector(NSView.viewWillStartLiveResize),
+           methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
+           hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
+               object in
+               (object as? NSView)?.willChangeValue(for: \.inLiveResize)
+               (object as? NSView)?._inLiveResize = true
+               (object as? NSView)?.didChangeValue(for: \.inLiveResize)
+               (object as? NSView)?._inLiveResize = nil
+               store.original(object, #selector(NSView.viewWillStartLiveResize))
+               }
+           }
+            try replaceMethod(
+            #selector(NSView.viewDidEndLiveResize),
+            methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
+            hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
+                object in
+                (object as? NSView)?._inLiveResize = true
+                (object as? NSView)?.willChangeValue(for: \.inLiveResize)
+                (object as? NSView)?._inLiveResize = nil
+                (object as? NSView)?.didChangeValue(for: \.inLiveResize)
+                store.original(object, #selector(NSView.viewDidEndLiveResize))
+                }
+            }
+            try replaceMethod(
+                #selector(getter: NSView.inLiveResize),
+            methodSignature: (@convention(c)  (AnyObject, Selector) -> (Bool)).self,
+            hookSignature: (@convention(block)  (AnyObject) -> (Bool)).self) { store in {
+                object in
+                (object as? NSView)?._inLiveResize ?? store.original(object,#selector(getter: NSView.inLiveResize))
+                }
+            }
+        } catch {
+           // handle error
+           debugPrint(error)
+        }
+    }
+    
+    var _inLiveResize: Bool? {
+        get { getAssociatedValue("_inLiveResize", initialValue: nil) }
+        set { setAssociatedValue(newValue, key: "_inLiveResize") }
     }
     
     var _isFirstResponder: Bool {
@@ -220,6 +375,9 @@ extension NSView {
         /// The handler that gets called when `isMain` changed.
         public var isMain: ((Bool) -> Void)?
         
+        /// The handler that gets called when the window is resized by the user.
+        public var isLiveResizing: ((Bool)->())?
+        
         var needsObserving: Bool {
             isKey != nil || isMain != nil || window != nil
         }
@@ -235,6 +393,8 @@ extension NSView {
         public var frame: ((CGRect)->())?
         /// The handler that gets called when `isHidden` changed.
         public var isHidden: ((Bool)->())?
+        /// The handler that gets called when the view is resized by the user.
+        public var isLiveResizing: ((Bool)->())?
         /// The handler that gets called when the alpha value changed.
         public var alphaValue: ((CGFloat)->())?
         /// The handler that gets called when the effective appearance changed.
@@ -252,7 +412,8 @@ extension NSView {
             frame != nil ||
             effectiveAppearance != nil ||
             isFirstResponder != nil ||
-            screen != nil
+            screen != nil ||
+            isLiveResizing != nil
         }
     }
     
