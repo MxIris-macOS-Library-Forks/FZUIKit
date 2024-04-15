@@ -81,7 +81,7 @@ public class CollectionViewWaterfallLayout: NSUICollectionViewLayout, PinchableC
     public typealias ItemSizeProvider = (_ indexPath: IndexPath) -> CGSize
 
     public var keepItemOrder: Bool = true
-    private var mappedItemColumns: [IndexPath: Int] = [:]
+    public var mappedItemColumns: [IndexPath: Int] = [:]
     
     #if os(macOS) || os(iOS)
     /**
@@ -103,6 +103,20 @@ public class CollectionViewWaterfallLayout: NSUICollectionViewLayout, PinchableC
         self.minimumInteritemSpacing = spacing
         self.minimumColumnSpacing = spacing
         self.sectionInset = insets
+        self.keyDownColumnChangeAmount = isKeyDownControllable ? 1 : 0
+        self.keyDownAltColumnChangeAmount = isKeyDownControllable ? -1 : 0
+    }
+    
+    var itemAspectRatio: CGSize? = nil
+    public convenience init(grid columns: Int, columnRange: ClosedRange<Int> = 1...12, isPinchable: Bool = false, isKeyDownControllable: Bool = false, spacing: CGFloat = 10, insets: NSUIEdgeInsets = .init(10.0), itemAspectRatio: CGSize = CGSize(1,1)) {
+        self.init()
+        self.columns = columns
+        self.columnRange = columnRange
+        self.isPinchable = isPinchable
+        self.minimumInteritemSpacing = spacing
+        self.minimumColumnSpacing = spacing
+        self.sectionInset = insets
+        self.itemAspectRatio = itemAspectRatio
         self.keyDownColumnChangeAmount = isKeyDownControllable ? 1 : 0
         self.keyDownAltColumnChangeAmount = isKeyDownControllable ? -1 : 0
     }
@@ -478,6 +492,9 @@ public class CollectionViewWaterfallLayout: NSUICollectionViewLayout, PinchableC
                     if itemSize.width > 0 {
                         itemHeight = (itemHeight * itemWidth / itemSize.width)
                     } // else use default item width based on other parameters
+                }
+                if let itemAspectRatio = itemAspectRatio {
+                    itemHeight = (itemAspectRatio.height / itemAspectRatio.width) * itemWidth
                 }
                 #if os(macOS)
                     attributes = NSUICollectionViewLayoutAttributes(forItemWith: indexPath)
