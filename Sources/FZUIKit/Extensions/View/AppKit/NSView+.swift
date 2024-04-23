@@ -297,9 +297,7 @@
          The default value is `0.0`, which results in a view with no rounded corners.
          */
         @objc open var cornerRadius: CGFloat {
-            get {
-               return layer?.cornerRadius ?? 0.0
-            }
+            get { layer?.cornerRadius ?? 0.0 }
             set {
                 let clipsToBounds = clipsToBounds
                 wantsLayer = true
@@ -307,10 +305,8 @@
                 layer?.cornerRadius = newValue
                 self.clipsToBounds = clipsToBounds
                 layer?.masksToBounds = clipsToBounds
-                Swift.debugPrint(clipsToBounds, layer?.masksToBounds ?? "nil", self.clipsToBounds)
             }
         }
-        
 
         /**
          The corner curve of the view.
@@ -337,7 +333,7 @@
             get { layer?.maskedCorners ?? CACornerMask() }
             set {
                 wantsLayer = true
-                layer?.maskedCorners = newValue
+                optionalLayer?.maskedCorners = newValue
             }
         }
 
@@ -346,7 +342,7 @@
 
          Using this property turns the view into a layer-backed view. The value can be animated via `animator().border`.
          */
-        public var border: BorderConfiguration {
+       @objc public var border: BorderConfiguration {
             get {
                 let view = realSelf
                 return view.dashedBorderLayer?.configuration ?? .init(color: view.borderColor, width: view.borderWidth)
@@ -400,7 +396,7 @@
 
          The default value is `none()`, which results in a view with no outer shadow.
          */
-        public var outerShadow: ShadowConfiguration {
+        @objc public var outerShadow: ShadowConfiguration {
             get {
                 let view = realSelf
                 return ShadowConfiguration(color: view.shadowColor, opacity: view.shadowOpacity, radius: view.shadowRadius, offset: view.shadowOffset)
@@ -518,7 +514,7 @@
 
          The default value is `none()`, which results in a view with no inner shadow.
          */
-        public var innerShadow: ShadowConfiguration {
+      @objc public var innerShadow: ShadowConfiguration {
             get { realSelf.layer?.innerShadowLayer?.configuration ?? .none() }
             set {
                 wantsLayer = true
@@ -575,9 +571,7 @@
 
         /// Removes all tracking areas.
         public func removeAllTrackingAreas() {
-            for trackingArea in trackingAreas {
-                removeTrackingArea(trackingArea)
-            }
+            trackingAreas.forEach({ removeTrackingArea($0) })
         }
 
         /**
@@ -729,74 +723,6 @@
             return self
         }
         
-        /*
-        public enum MouseMoveOption: UInt {
-            case always = 128
-            case inActiveApp = 64
-            case inKeyWindow = 32
-            case whenFirstResponder = 16
-            case never = 0
-            
-            var trackingOption: NSTrackingArea.Options? {
-                self != .never ? NSTrackingArea.Options(rawValue: rawValue) : nil
-            }
-            
-            init?(_ trackingArea: NSTrackingArea) {
-                if let option = [MouseMoveOption.always, .inActiveApp, .inKeyWindow, .whenFirstResponder].first(where: {
-                    trackingArea.options.contains($0.trackingOption!)}) {
-                    self = option
-                } else {
-                    return nil
-                }
-            }
-        }
-                
-        /**
-         A Boolean value that indicates whether the view accepts mouse movement events.
-         
-         The value of this property is `true` when the view has any tracking area  with options `mouseEnteredAndExited` and `mouseMoved`.
-         */
-        public var acceptsMouseMovedEvents: MouseMoveOption {
-            get {
-                if let trackingArea = mouseMovementTrackingArea?.trackingArea, let option = MouseMoveOption(trackingArea) {
-                    return option
-                }
-                if let trackingArea = trackingAreas.first(where: { $0.options.contains([.mouseMoved, .mouseEnteredAndExited]) && $0.options.contains(any: [.activeAlways, .activeInActiveApp, .activeInKeyWindow, .activeWhenFirstResponder])}) {
-                    return MouseMoveOption(trackingArea) ?? .never
-                }
-                return .never
-            }
-            set {
-                guard newValue != acceptsMouseMovedEvents else { return }
-                if newValue != .never {
-                    mouseMovementTrackingArea = TrackingArea(for: self, options: [.mouseMoved, .mouseEnteredAndExited, newValue.trackingOption!])
-                    guard !isMethodReplaced(NSSelectorFromString("updateTrackingAreas")) else { return }
-                    do {
-                        try replaceMethod(
-                            NSSelectorFromString("updateTrackingAreas"),
-                            methodSignature: (@convention(c) (AnyObject, Selector) -> ()).self,
-                            hookSignature: (@convention(block) (AnyObject) -> ()).self
-                        ) { store in { object in
-                            (object as? NSView)?.mouseMovementTrackingArea?.update()
-                            store.original(object, NSSelectorFromString("updateTrackingAreas"))
-                        }
-                        }
-                    } catch {
-                        debugPrint(error)
-                    }
-                } else {
-                    resetMethod(NSSelectorFromString("updateTrackingAreas"))
-                    mouseMovementTrackingArea = nil
-                }
-            }
-        }
-        
-        var mouseMovementTrackingArea: TrackingArea? {
-            get { getAssociatedValue("mouseMovementTrackingArea", initialValue: nil) }
-            set { setAssociatedValue(newValue, key: "mouseMovementTrackingArea") }
-        }
-        */
-
         static func swizzleAnimationForKey() {
             guard didSwizzleAnimationForKey == false else { return }
             didSwizzleAnimationForKey = true
@@ -859,20 +785,5 @@
 
     /// The `NSView` properties keys that can be animated.
     private let NSViewAnimationKeys = ["transform", "transform3D", "anchorPoint", "cornerRadius", "roundedCorners", "borderWidth", "borderColorAnimatable", "mask", "inverseMask", "backgroundColorAnimatable", "left", "right", "top", "bottom", "topLeft", "topCenter", "topRight", "centerLeft", "center", "centerRight", "bottomLeft", "bottomCenter", "bottomRight", "shadowColorAnimatable", "shadowOffset", "shadowOpacity", "shadowRadius", "shadowPathAnimatable", "innerShadowColor", "innerShadowOffset", "innerShadowOpacity", "innerShadowRadius", "fontSize", "gradientStartPoint", "gradientEndPoint", "gradientLocations", "gradientColors", "contentOffset", "contentOffsetFractional", "documentSize"]
-
-extension NSObject {
-    @objc private func _realSelf() -> NSObject { self }
-    static func toRealSelf<Object: NSObject>(_ v: Object) -> Object {
-        v.perform(#selector(_realSelf))!.takeUnretainedValue() as! Object
-    }
-}
-
-extension NSObjectProtocol where Self: NSObject {
-    /// Returns the real `self`, if the object is a proxy.
-    var realSelf: Self {
-        guard isProxy() else { return self }
-        return Self.toRealSelf(self)
-    }
-}
 
 #endif

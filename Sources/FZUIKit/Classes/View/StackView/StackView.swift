@@ -220,10 +220,6 @@ open class StackView: NSUIView {
         }
         let width = sizes.compactMap({$0.width}).max() ?? 0.0
         let height = sizes.compactMap({$0.height}).sum() + (CGFloat(views.count-1) * spacing) + (0 - (baselineOffsets.min() ?? 0))
-        if orientation == .horizontal {
-            for arrangedSubview in arrangedSubviews {
-            }
-        }
         return CGSize(width, height)
     }
     #else
@@ -336,6 +332,7 @@ open class StackView: NSUIView {
         viewCalculatedValues.removeAll()
         let arrangedSubviews = arrangedSubviews.filter({!$0.isHidden})
         guard !arrangedSubviews.isEmpty else { return nil }
+        let availableSpace = bounds.inset(by: layoutMargins).size
         var calculation = LayoutCalculation()
         for arrangedSubview in arrangedSubviews {
             let id = ObjectIdentifier(arrangedSubview).hashValue
@@ -349,9 +346,9 @@ open class StackView: NSUIView {
                 viewCalculatedValues[id] = orientation == .horizontal ? CGSize(value, isSpacer ? 0 : arrangedSubview.frame.height) : CGSize(isSpacer ? 0 : arrangedSubview.frame.width, value)
             case .automatic:
                 #if os(macOS)
-                var fittingSize = arrangedSubview.fittingSize
+                var fittingSize = (arrangedSubview as? NSControl)?.sizeThatFits(availableSpace) ?? arrangedSubview.fittingSize
                 #else
-                var fittingSize = arrangedSubview.sizeThatFits(bounds.size)
+                var fittingSize = arrangedSubview.sizeThatFits(availableSpace)
                 #endif
                 fittingSize = fittingSize.width <= 0 || fittingSize.height <= 0 ? arrangedSubview.bounds.size : fittingSize
                 calculation.fixedValueSum += orientation == .horizontal ? fittingSize.width : fittingSize.height

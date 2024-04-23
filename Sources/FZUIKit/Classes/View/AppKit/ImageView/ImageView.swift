@@ -6,7 +6,6 @@
 //
 
 #if os(macOS)
-
 import AppKit
 import FZSwiftUtils
 
@@ -14,13 +13,12 @@ import FZSwiftUtils
 @IBDesignable
 open class ImageView: NSControl {
     
-    let containerView = NSView()
-    let imageView = NSImageView()
+    let containerView = ContainerView().backgroundColor(.systemRed.withAlphaComponent(0.3))
+    let imageView = NSImageView().backgroundColor(.systemGreen.withAlphaComponent(0.3))
     var timer: DisplayLinkTimer? = nil
     var currentRepeatCount = 0
     var ignoreTransition = false
     var trackingArea: TrackingArea?
-    let imageShadowView = NSView()
     
     /// The image displayed in the image view.
    @IBInspectable open var image: NSImage? {
@@ -39,6 +37,12 @@ open class ImageView: NSControl {
             }
         }
     }
+    
+    /// Sets the image displayed in the image view.
+    @discardableResult
+    open func image(_ image: NSImage?) -> Self {
+        set(\.image, to: image)
+    }
 
     /// The images displayed by the image view.
     open var images: [NSImage] = [] {
@@ -46,6 +50,12 @@ open class ImageView: NSControl {
             animatedImage = nil
             imagesUpdated()
         }
+    }
+    
+    /// Sets the images displayed by the image view.
+    @discardableResult
+    open func images(_ images: [NSImage]) -> Self {
+        set(\.images, to: images)
     }
     
     var animatedImage: AnimatedImage? = nil {
@@ -60,7 +70,6 @@ open class ImageView: NSControl {
     
     func imagesUpdated() {
         containerView.isHidden = imagesCount == 0
-        imageShadowView.isHidden = containerView.isHidden
         overlayContentView.isHidden = containerView.isHidden
         stopAnimating()
         currentImageIndex = 0
@@ -83,9 +92,10 @@ open class ImageView: NSControl {
         }
     }
     
+    /// Sets the image scaling.
+    @discardableResult
     open func imageScaling(_ imageScaling: ImageScaling) -> Self {
-        self.imageScaling = imageScaling
-        return self
+        set(\.imageScaling, to: imageScaling)
     }
     
     /// Constants that specify the image scaling behavior.
@@ -117,31 +127,46 @@ open class ImageView: NSControl {
         }
     }
     
+    /// Sets the image alignment inside the image view.
+    @discardableResult
+    open func imageAlignment(_ alignment: NSImageAlignment) -> Self {
+        set(\.imageAlignment, to: alignment)
+    }
+    
     /// The corner radius of the image.
     open var imageCornerRadius: CGFloat {
         get { containerView.cornerRadius }
-        set { 
-            containerView.cornerRadius = newValue
-            imageShadowView.cornerRadius = newValue
-        }
+        set { containerView.cornerRadius = newValue }
+    }
+    
+    /// Sets the corner radius of the image.
+    @discardableResult
+    open func imageCornerRadius(_ cornerRadius: CGFloat) -> Self {
+        set(\.imageCornerRadius, to: cornerRadius)
     }
     
     /// The corner curve of the image.
     open var imageCornerCurve: CALayerCornerCurve {
         get { containerView.cornerCurve }
-        set { 
-            containerView.cornerCurve = newValue
-            imageShadowView.cornerCurve = newValue
-        }
+        set { containerView.cornerCurve = newValue }
+    }
+    
+    /// Sets the corner curve of the image.
+    @discardableResult
+    open func imageCornerCurve(_ cornerCurve: CALayerCornerCurve) -> Self {
+        set(\.imageCornerCurve, to: cornerCurve)
     }
     
     /// The rounded corners of the image.
     open var imageRoundedCorners: CACornerMask {
         get { containerView.roundedCorners }
-        set { 
-            containerView.roundedCorners = newValue
-            imageShadowView.roundedCorners = newValue
-        }
+        set {  containerView.roundedCorners = newValue }
+    }
+    
+    /// Sets the rounded corners of the image.
+    @discardableResult
+    open func imageRoundedCorners(_ roundedCorners: CACornerMask) -> Self {
+        set(\.imageRoundedCorners, to: roundedCorners)
     }
     
     /// The background color of the image.
@@ -150,19 +175,34 @@ open class ImageView: NSControl {
         set { containerView.backgroundColor = newValue }
     }
     
+    /// Sets the background color of the image.
+    @discardableResult
+    open func imageBackgroundColor(_ backgroundColor: NSColor?) -> Self {
+        set(\.imageBackgroundColor, to: backgroundColor)
+    }
+    
+    /// The outer shadow of the image.
+    open var imageShadow: ShadowConfiguration {
+        get { containerView.outerShadow }
+        set { containerView.outerShadow = newValue }
+    }
+    
+    /// Sets the outer shadow of the image.
+    @discardableResult
+    open func imageShadow(_ shadow: ShadowConfiguration) -> Self {
+        set(\.imageShadow, to: shadow)
+    }
+    
     /// The inner shadow of the image.
     open var imageInnerShadow: ShadowConfiguration {
         get { containerView.innerShadow }
         set { containerView.innerShadow = newValue }
     }
     
-    /// The outer shadow of the image.
-    open var imageShadow: ShadowConfiguration {
-        get { imageShadowView.outerShadow }
-        set { 
-            imageShadowView.outerShadow = newValue
-            imageShadowView.backgroundColor = newValue.resolvedColor()
-        }
+    /// Sets the inner shadow of the image.
+    @discardableResult
+    open func imageInnerShadow(_ shadow: ShadowConfiguration) -> Self {
+        set(\.imageInnerShadow, to: shadow)
     }
     
     /// The border of the image.
@@ -171,11 +211,24 @@ open class ImageView: NSControl {
         set { containerView.border = newValue }
     }
     
+    /// Sets the border of the image.
+    @discardableResult
+    open func imageBorder(_ border: BorderConfiguration) -> Self {
+        set(\.imageBorder, to: border)
+    }
+    
     /// The symbol configuration of the image.
     @available(macOS 11.0, *)
     open var symbolConfiguration: NSImage.SymbolConfiguration? {
         get { imageView.symbolConfiguration }
         set { imageView.symbolConfiguration = newValue }
+    }
+    
+    /// Sets the symbol configuration of the image.
+    @discardableResult
+    @available(macOS 11.0, *)
+    open func symbolConfiguration(_ symbolConfiguration: NSImage.SymbolConfiguration?) -> Self {
+        set(\.symbolConfiguration, to: symbolConfiguration)
     }
     
     /// Constants that specify the playback behavior for animated images.
@@ -208,18 +261,24 @@ open class ImageView: NSControl {
         }
     }
     
-    open override func updateTrackingAreas() {
-        trackingArea?.update()
-        super.updateTrackingAreas()
+    /// Sets the playback behavior for animated images.
+    @discardableResult
+    open func animationPlayback(_ animationPlayback: AnimationPlaybackOption) -> Self {
+        set(\.animationPlayback, to: animationPlayback)
     }
     
-    override open func mouseEntered(with event: NSEvent) {
+    open override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingArea?.update()
+    }
+    
+    open override func mouseEntered(with event: NSEvent) {
         if animationPlayback == .onMouseHover {
             startAnimating()
         }
     }
 
-    override open func mouseExited(with event: NSEvent) {
+    open override func mouseExited(with event: NSEvent) {
         if animationPlayback == .onMouseHover {
             stopAnimating()
         }
@@ -239,7 +298,7 @@ open class ImageView: NSControl {
         return true
     }
     
-    override open func mouseDown(with event: NSEvent) {
+    open override func mouseDown(with event: NSEvent) {
         if isSelectable == .byView, !isFirstResponder {
             makeFirstResponder()
             performAction()
@@ -356,8 +415,20 @@ open class ImageView: NSControl {
     /// The transition animation when changing the displayed image.
     open var transitionAnimation: TransitionAnimation = .none
     
+    /// Sets the transition animation when changing the displayed image.
+    @discardableResult
+    open func transitionAnimation(_ transition: TransitionAnimation) -> Self {
+        set(\.transitionAnimation, to: transition)
+    }
+    
     /// The duration of the transition animation.
     open var transitionDuration: TimeInterval = 0.2
+    
+    /// Sets the duration of the transition animation.
+    @discardableResult
+    open func transitionDuration(_ duration: TimeInterval) -> Self {
+        set(\.transitionDuration, to: duration)
+    }
     
     /// Constants that specify the transition animation when changing between displayed images.
     public enum TransitionAnimation: Hashable, CustomStringConvertible {
@@ -454,6 +525,23 @@ open class ImageView: NSControl {
         pauseAnimating()
         setImageFrame(to: .first)
     }
+    
+    enum AnimationPlaybackState: Int {
+        case isAnimating
+        case isPaused
+        case isStopped
+    }
+    
+    var animationPlaybackState: AnimationPlaybackState {
+        get { isAnimating ? .isAnimating : currentImageIndex > 0 ? .isPaused : .isStopped }
+        set {
+            switch newValue {
+            case .isAnimating: startAnimating()
+            case .isPaused: pauseAnimating()
+            case .isStopped: stopAnimating()
+            }
+        }
+    }
 
     /// A Boolean value that indicates whether the animation is running.
     open var isAnimating: Bool {
@@ -494,6 +582,12 @@ open class ImageView: NSControl {
         }
     }
     
+    /// Sets the amount of time it takes to go through one cycle of an animated image.
+    @discardableResult
+    open func animationDuration(_ duration: TimeInterval) -> Self {
+        set(\.animationDuration, to: duration)
+    }
+    
     /**
      Specifies the number of times to repeat the animation.
 
@@ -501,10 +595,22 @@ open class ImageView: NSControl {
      */
     open var animationRepeatCount: Int = 0
     
+    /// Sets the number of times to repeat the animation.
+    @discardableResult
+    open func animationRepeatCount(_ repeatCount: Int) -> Self {
+        set(\.animationRepeatCount, to: repeatCount)
+    }
+    
     /// The image tint color for template and symbol images.
     @IBInspectable open var tintColor: NSColor? {
         get { imageView.contentTintColor }
         set { imageView.contentTintColor = newValue }
+    }
+    
+    /// Sets the image tint color for template and symbol images.
+    @discardableResult
+    open func tintColor(_ tintColor: NSColor?) -> Self {
+        set(\.tintColor, to: tintColor)
     }
     
     /// The dynamic range of the image.
@@ -518,6 +624,13 @@ open class ImageView: NSControl {
     open var preferredImageDynamicRange: NSImage.DynamicRange {
         get { imageView.preferredImageDynamicRange }
         set { imageView.preferredImageDynamicRange = newValue }
+    }
+    
+    /// Sets the preferred dynamic image range.
+    @discardableResult
+    @available(macOS 14.0, *)
+    open func preferredImageDynamicRange(_ dynamicRange: NSImage.DynamicRange) -> Self {
+        set(\.preferredImageDynamicRange, to: dynamicRange)
     }
     
     /// The default preferred dynamic image range.
@@ -549,9 +662,15 @@ open class ImageView: NSControl {
                     guard let self = self else { return false }
                     switch self.allowsImageDrop {
                     case .single:
-                        return contents.images.count == 1
+                        if contents.images.count == 1 {
+                            return true
+                        }
+                        return contents.fileURLs.filter({$0.fileType?.isImageType == true }).count == 1
                     case .multiple:
-                        return !contents.images.isEmpty
+                        if !contents.images.isEmpty {
+                            return true
+                        }
+                        return !contents.fileURLs.filter({$0.fileType?.isImageType == true }).isEmpty
                     case .none:
                         return false
                     }
@@ -559,18 +678,34 @@ open class ImageView: NSControl {
                 overlayContentView.dropHandlers.didDrop = { [weak self] contents,_,_ in
                     guard let self = self else { return }
                     let droppedImages = contents.images
+                    let imageURLs = contents.fileURLs.filter({$0.fileType?.isImageType == true })
                     switch self.allowsImageDrop {
                     case .single:
-                        guard droppedImages.count == 1 else { return }
-                        self.image = droppedImages.first
+                        if droppedImages.count == 1 {
+                            self.image = droppedImages.first
+                        } else if imageURLs.count == 1, let image = NSImage(contentsOf: imageURLs.first!) {
+                            self.image = image
+                        }
                     case .multiple:
-                        guard !droppedImages.isEmpty else { return }
-                        self.images = droppedImages
+                        if !droppedImages.isEmpty {
+                            self.images = droppedImages
+                        } else {
+                           let images = imageURLs.compactMap({NSImage(contentsOf: $0)})
+                            if !images.isEmpty {
+                                self.images = images
+                            }
+                        }
                     case .none: break
                     }
                 }
             }
         }
+    }
+    
+    /// Sets the value that indicates whether the user can drag new images into the image view.
+    @discardableResult
+    open func allowsImageDrop(_ allowsImageDrop: ImageDropOption) -> Self {
+        set(\.allowsImageDrop, to: allowsImageDrop)
     }
     
     /*
@@ -593,6 +728,12 @@ open class ImageView: NSControl {
                 resignFirstResponding()
             }
         }
+    }
+    
+    /// Sets the value that indicates whether the image view can be selected.
+    @discardableResult
+    open func isSelectable(_ isSelectable: SelectionOption) -> Self {
+        set(\.isSelectable, to: isSelectable)
     }
     
     /// Constant that indicates whether the user can select the image view.
@@ -623,6 +764,12 @@ open class ImageView: NSControl {
         set { imageView.allowsCutCopyPaste = newValue }
     }
     
+    /// Sets the Boolean value indicating whether the image view lets the user cut, copy, and paste the image contents.
+    @discardableResult
+    open func allowsCutCopyPaste(_ allowsCutCopyPaste: Bool) -> Self {
+        set(\.allowsCutCopyPaste, to: allowsCutCopyPaste)
+    }
+    
     /**
      Adds an indefinite symbol effect to the image view with the specified options and animation.
      
@@ -633,7 +780,7 @@ open class ImageView: NSControl {
     */
     @MainActor
     @available(macOS 14.0, *)
-    func addSymbolEffect(
+    open func addSymbolEffect(
         _ effect: some IndefiniteSymbolEffect & SymbolEffect,
         options: SymbolEffectOptions = .default,
         animated: Bool = true) {
@@ -650,7 +797,7 @@ open class ImageView: NSControl {
     */
     @MainActor
     @available(macOS 14.0, *)
-    func addSymbolEffect(
+    open func addSymbolEffect(
         _ effect: some DiscreteSymbolEffect & SymbolEffect,
         options: SymbolEffectOptions = .default,
         animated: Bool = true) {
@@ -667,7 +814,7 @@ open class ImageView: NSControl {
      */
     @MainActor
     @available(macOS 14.0, *)
-    func addSymbolEffect(
+    open func addSymbolEffect(
         _ effect: some DiscreteSymbolEffect & IndefiniteSymbolEffect & SymbolEffect,
         options: SymbolEffectOptions = .default,
         animated: Bool = true) {
@@ -684,7 +831,7 @@ open class ImageView: NSControl {
      */
     @MainActor
     @available(macOS 14.0, *)
-    func setSymbolImage(
+    open func setSymbolImage(
         _ image: NSImage,
         contentTransition: some ContentTransitionSymbolEffect & SymbolEffect,
         options: SymbolEffectOptions = .default) {
@@ -701,7 +848,7 @@ open class ImageView: NSControl {
      */
     @MainActor
     @available(macOS 14.0, *)
-    func removeSymbolEffect(
+    open func removeSymbolEffect(
         ofType effect: some IndefiniteSymbolEffect & SymbolEffect,
         options: SymbolEffectOptions = .default,
         animated: Bool = true) {
@@ -718,7 +865,7 @@ open class ImageView: NSControl {
      */
     @MainActor
     @available(macOS 14.0, *)
-    func removeSymbolEffect(
+    open func removeSymbolEffect(
         ofType effect: some DiscreteSymbolEffect & IndefiniteSymbolEffect & SymbolEffect,
         options: SymbolEffectOptions = .default,
         animated: Bool = true) {
@@ -735,7 +882,7 @@ open class ImageView: NSControl {
      */
     @MainActor
     @available(macOS 14.0, *)
-    func removeSymbolEffect(
+    open func removeSymbolEffect(
         ofType effect: some DiscreteSymbolEffect & SymbolEffect,
         options: SymbolEffectOptions = .default,
         animated: Bool = true) {
@@ -751,7 +898,7 @@ open class ImageView: NSControl {
      */
     @MainActor
     @available(macOS 14.0, *)
-    func removeAllSymbolEffects(
+    open func removeAllSymbolEffects(
         options: SymbolEffectOptions = .default,
         animated: Bool = true) {
             imageView.removeAllSymbolEffects(options: options, animated: animated)
@@ -768,6 +915,20 @@ open class ImageView: NSControl {
         super.init(frame: .zero)
         sharedInit()
         imageView.image = image
+    }
+    
+    /**
+     Returns an image view initialized with the specified symbol image.
+     
+     - Parameter symbolName: The name of the symbol image.
+     
+     - Returns: An initialized image view object.
+     */
+    @available(macOS 11.0, *)
+    public init(symbolName: String) {
+        super.init(frame: .zero)
+        sharedInit()
+        imageView.image = NSImage(systemSymbolName: symbolName)
     }
     
     public init() {
@@ -793,10 +954,7 @@ open class ImageView: NSControl {
         imageView.intrinsicContentSize
     }
 
-    func sharedInit() {        
-        imageShadowView.clipsToBounds = false
-        addSubview(imageShadowView)
-        
+    private func sharedInit() {
         imageView.frame = bounds
         imageView.animates = false
         imageView.imageScaling = imageScaling.nsImageScaling
@@ -816,7 +974,6 @@ open class ImageView: NSControl {
         guard displayingImage != nil else { return }
         if imageScaling == .scaleToFill, let imageSize = displayingImage?.size {
             imageView.frame.size = imageSize.scaled(toFill: bounds.size)
-                        
             switch imageAlignment {
             case .alignTopLeft:
                 imageView.frame.topLeft = bounds.topLeft
@@ -846,7 +1003,6 @@ open class ImageView: NSControl {
             containerView.frame = imageView.imageBounds
             imageView.frame = containerView.bounds
         }
-        imageShadowView.frame = containerView.frame
         if overlayContentView.frame != containerView.frame {
             willChangeValue(for: \.imageBounds)
             overlayContentView.frame = containerView.frame
@@ -854,11 +1010,11 @@ open class ImageView: NSControl {
         }
     }
     
-    override open func alignmentRect(forFrame frame: NSRect) -> NSRect {
+    open override func alignmentRect(forFrame frame: NSRect) -> NSRect {
         imageView.alignmentRect(forFrame: frame)
     }
 
-    override open func frame(forAlignmentRect alignmentRect: NSRect) -> NSRect {
+    open override func frame(forAlignmentRect alignmentRect: NSRect) -> NSRect {
         imageView.frame(forAlignmentRect: alignmentRect)
     }
     
@@ -882,13 +1038,13 @@ open class ImageView: NSControl {
         get { imageView.lastBaselineAnchor }
     }
     
-    override open var acceptsFirstResponder: Bool { isSelectable != .off }
+    open override var acceptsFirstResponder: Bool { isSelectable != .off }
         
-    override open func drawFocusRingMask() {
+    open override func drawFocusRingMask() {
         NSBezierPath(roundedRect: focusRingMaskBounds, cornerRadius: isSelectable == .byImage ?  imageCornerRadius : cornerRadius).fill()
     }
     
-    override open var focusRingMaskBounds: NSRect {
+    open override var focusRingMaskBounds: NSRect {
         isSelectable == .byImage ? overlayContentView.frame : bounds
     }
     
@@ -937,35 +1093,81 @@ open class ImageView: NSControl {
         let image: NSImage
         var frames: SynchronizedArray<Frame> = []
     }
+    
+    class ContainerView: NSView {
+        let containerView = NSView()
+        var didSetup = false
+
+        override var subviews: [NSView] {
+            get { didSetup ? containerView.subviews : super.subviews }
+            set {
+                if didSetup {
+                    containerView.subviews = newValue
+                } else {
+                    super.subviews = newValue
+                }
+            }
+        }
+        
+        override func addSubview(_ view: NSView) {
+            if didSetup {
+                containerView.addSubview(view)
+            } else {
+                super.addSubview(view)
+            }
+        }
+        
+        override var cornerRadius: CGFloat {
+            didSet { 
+                containerView.cornerRadius = cornerRadius
+                clipsToBounds = false
+            }
+        }
+        
+        override var cornerCurve: CALayerCornerCurve {
+            didSet { containerView.cornerCurve = cornerCurve }
+        }
+        
+        override var roundedCorners: CACornerMask {
+            didSet { containerView.roundedCorners = roundedCorners }
+        }
+        
+        override var innerShadow: ShadowConfiguration {
+            get { containerView.innerShadow }
+            set { containerView.innerShadow = newValue }
+        }
+        
+        override var outerShadow: ShadowConfiguration {
+            didSet { backgroundColor = outerShadow.resolvedColor() }
+        }
+        
+        init() {
+            super.init(frame: .zero)
+            sharedInit()
+        }
+            
+        override init(frame frameRect: NSRect) {
+            super.init(frame: frameRect)
+            sharedInit()
+        }
+        
+        required init?(coder: NSCoder) {
+            super.init(coder: coder)
+            sharedInit()
+        }
+        
+        func sharedInit() {
+            clipsToBounds = false
+            containerView.clipsToBounds = true
+            addSubview(withConstraint: containerView)
+            didSetup = true
+        }
+    }
 }
 
 extension ImageView.FramePosition: ExpressibleByIntegerLiteral {
     public init(integerLiteral value: Int) {
         self = .index(value)
-    }
-}
-
-extension CALayerContentsGravity {
-    var scaling: NSImageScaling {
-        switch self {
-        case .resize: return .scaleAxesIndependently
-        case .resizeAspect: return .scaleProportionallyUpOrDown
-        default: return .scaleNone
-        }
-    }
-    
-    var alignment: NSImageAlignment {
-        switch self {
-        case .topLeft: return .alignTopLeft
-        case .topRight: return .alignTopRight
-        case .top: return .alignTop
-        case .right: return .alignRight
-        case .left: return .alignLeft
-        case .bottom: return .alignBottom
-        case .bottomLeft: return .alignBottomLeft
-        case .bottomRight: return .alignBottomRight
-        default: return .alignCenter
-        }
     }
 }
 

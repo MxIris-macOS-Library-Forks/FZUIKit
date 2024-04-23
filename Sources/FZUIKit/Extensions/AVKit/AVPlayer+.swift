@@ -74,20 +74,17 @@ public extension AVPlayer {
      Requests that the player seek to a specified percentage.
 
      - Parameters:
-        - percentage: The percentage to which to seek.
+        - percentage: The percentage to which to seek (between `0.0` and `1.0`).
+        - tolerance: The tolerance.
         - completionHandler: The block to invoke when the seek operation has either been completed or been interrupted. The block takes one argument:
             - finished: A Boolean value that indicates whether the seek operation completed.
      */
-    func seek(toPercentage percentage: Double, completionHandler: ((Bool) -> Void)? = nil) {
+    func seek(toPercentage percentage: Double, tolerance: TimeDuration? = nil, completionHandler: ((Bool) -> Void)? = nil) {
         guard let currentItem = currentItem else { return }
         let duration = currentItem.duration
         let to: Double = duration.seconds * percentage.clamped(to: 0.0...1.0)
-        let seekTo = CMTime(seconds: to)
-        if let completionHandler = completionHandler {
-            seek(to: seekTo, completionHandler: completionHandler)
-        } else {
-            seek(to: seekTo)
-        }
+        let time = CMTime(seconds: to)
+        seek(to: time, tolerance: tolerance, completionHandler: completionHandler)
     }
 
     /**
@@ -95,15 +92,28 @@ public extension AVPlayer {
 
      - Parameters:
         - time: The time to which to seek.
+        - tolerance: The tolerance.
         - completionHandler: The block to invoke when the seek operation has either been completed or been interrupted. The block takes one argument:
             - finished: A Boolean value that indicates whether the seek operation completed.
      */
-    func seek(to time: TimeDuration, completionHandler: ((Bool) -> Void)? = nil) {
-        let seekTo = CMTime(duration: time)
+    func seek(to time: TimeDuration, tolerance: TimeDuration? = nil, completionHandler: ((Bool) -> Void)? = nil) {
+        let time = CMTime(duration: time)
+        seek(to: time, tolerance: tolerance, completionHandler: completionHandler)
+    }
+    
+    internal func seek(to time: CMTime, tolerance: TimeDuration?, completionHandler: ((Bool) -> Void)?) {
         if let completionHandler = completionHandler {
-            seek(to: seekTo, completionHandler: completionHandler)
+            if let tolerance = tolerance?.seconds {
+                seek(to: time, toleranceBefore: CMTime(seconds: tolerance / 2.0), toleranceAfter: CMTime(seconds: tolerance / 2.0), completionHandler: completionHandler)
+            } else {
+                seek(to: time, completionHandler: completionHandler)
+            }
         } else {
-            seek(to: seekTo)
+            if let tolerance = tolerance?.seconds {
+                seek(to: time, toleranceBefore: CMTime(seconds: tolerance / 2.0), toleranceAfter: CMTime(seconds: tolerance / 2.0))
+            } else {
+                seek(to: time)
+            }
         }
     }
 
@@ -115,7 +125,7 @@ public extension AVPlayer {
     /// The current playback percentage (between `0` and `1.0`).
     var playbackPercentage: Double {
         get { currentItem?.playbackPercentage ?? .zero }
-        set { seek(toPercentage: newValue) }
+        set { seek(toPercentage: newValue, tolerance: .zero) }
     }
     
     /// The duration of the current player item.
@@ -125,8 +135,8 @@ public extension AVPlayer {
     
     /// The current time of the current player item as `TimeDuration`.
     var currentTimeDuration: TimeDuration {
-        get { TimeDuration(time: currentTime()) }
-        set { seek(to: newValue.clamped(max: duration)) }
+        get { currentTime().timeDuration }
+        set { seek(to: newValue.clamped(max: duration), tolerance: .zero) }
     }
 
     /// Toggles the playback between play and pause.
@@ -263,7 +273,7 @@ public class AVPlayerTimeObservation {
     init (_ player: AVPlayer, interval: TimeInterval, queue: dispatch_queue_t?,  handler: @escaping (TimeDuration)->()) {
         self.player = player
         self.observer = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: interval), queue: queue) { time in
-            handler(TimeDuration(time: time))
+            handler(time.timeDuration)
         }
     }
     
