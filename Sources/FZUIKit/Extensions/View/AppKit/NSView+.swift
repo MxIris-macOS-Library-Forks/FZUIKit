@@ -10,6 +10,14 @@
     import FZSwiftUtils
 
     extension NSView {
+                
+        /// Sets type of focus ring drawn around the view.
+        @discardableResult
+        public func focusRingType(_ type: NSFocusRingType) -> Self {
+            self.focusRingType = type
+            return self
+        }
+        
         /**
          The frame rectangle, which describes the view’s location and size in its window’s coordinate system.
 

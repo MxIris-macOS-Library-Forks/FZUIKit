@@ -13,8 +13,13 @@
     /// A magnifiable view that displays media.
     open class MagnifyMediaView: NSView {
         
-        private let mediaView = MediaView()
+        public let mediaView = MediaView()
         private let scrollView = FZScrollView()
+        
+        /// The player for media assets.
+        public var player: AVPlayer {
+            mediaView.player
+        }
         
         // MARK: - Media
         
@@ -77,6 +82,18 @@
         @discardableResult
         open func asset(_ asset: AVAsset?) -> Self {
             set(\.asset, to: asset)
+        }
+        
+        /// The handler that gets called when the status of the media asset changes.
+        open var assetStatusHandler: ((AVPlayerItem.Status)->())? {
+            get { mediaView.assetStatusHandler }
+            set { mediaView.assetStatusHandler = newValue }
+        }
+        
+        /// Sets the handler that gets called when the status of the media asset changes.
+        @discardableResult
+        open func assetStatusHandler(_ handler: ((AVPlayerItem.Status)->())?) -> Self {
+            set(\.assetStatusHandler, to: handler)
         }
         
         /// The media type currently displayed.

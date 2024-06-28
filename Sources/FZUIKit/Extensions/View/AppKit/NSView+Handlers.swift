@@ -116,7 +116,13 @@ extension NSView {
             observe(\.window?.screen, handler: \.viewHandlers.screen)
             
             if viewHandlers.isLiveResizing != nil {
-                setupLiveResizingObservation()
+                NSView.isLiveResizingObservable = true
+                viewObserver?.add(\.inLiveResize) { [weak self] old, new in
+                    guard let self = self, old != new else { return }
+                    self.viewHandlers.isLiveResizing?(new)
+                }
+            } else {
+                viewObserver?.remove(\.inLiveResize)
             }
             
             if windowHandlers.isLiveResizing != nil {
@@ -132,31 +138,27 @@ extension NSView {
             }
             
             if windowHandlers.isKey != nil {
-                if  viewObserver?.isObserving(\.window?.isKey) == false {
+                if  viewObserver?.isObserving(\.window?.isKeyWindow) == false {
                     NSWindow.isKeyWindowObservable = true
-                    viewObserver?.add(\.window?.isKey) { [weak self] _, new in
+                    viewObserver?.add(\.window?.isKeyWindow) { [weak self] _, new in
                         guard let self = self, let new = new else { return }
                         self.windowHandlers.isKey?(new)
                     }
                 }
             } else {
-                viewObserver?.remove(\.window?.isKey)
+                viewObserver?.remove(\.window?.isKeyWindow)
             }
             
             if windowHandlers.isMain != nil {
-                if  viewObserver?.isObserving(\.window?.isMain) == false {
+                if  viewObserver?.isObserving(\.window?.isMainWindow) == false {
                     NSWindow.isMainWindowObservable = true
-                    viewObserver?.add(\.window?.isMain) { [weak self] _, new in
+                    viewObserver?.add(\.window?.isMainWindow) { [weak self] _, new in
                         guard let self = self, let new = new else { return }
                         self.windowHandlers.isMain?(new)
                     }
                 }
             } else {
-                viewObserver?.remove(\.window?.isMain)
-            }
-            
-            if windowHandlers.isMain != nil {
-                NSWindow.isMainWindowObservable = true
+                viewObserver?.remove(\.window?.isMainWindow)
             }
             
             if viewHandlers.isFirstResponder != nil {
@@ -174,52 +176,6 @@ extension NSView {
             }
         } else {
             viewObserver = nil
-        }
-    }
-    
-    /**
-     A Boolean value that indicates whether the view is currently being resized by the user.
-     
-     The value is `KVO` observable.
-     
-     T
-     - Note: To be able to observe the value, you have to access the property once.
-     */
-   @objc dynamic public internal(set) var isLiveResizing: Bool {
-        get {
-            setupLiveResizingObservation()
-            return getAssociatedValue("isLiveResizing", initialValue: false)
-        }
-       set {
-           setAssociatedValue(newValue, key: "isLiveResizing")
-           viewHandlers.isLiveResizing?(newValue)
-       }
-    }
-    
-    func setupLiveResizingObservation() {
-        guard !isMethodReplaced(#selector(NSView.viewWillStartLiveResize)) else { return  }
-        do {
-           try replaceMethod(
-           #selector(NSView.viewWillStartLiveResize),
-           methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
-           hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
-               object in
-               (object as? NSView)?.isLiveResizing = true
-               store.original(object, #selector(NSView.viewWillStartLiveResize))
-               }
-           }
-            try replaceMethod(
-            #selector(NSView.viewDidEndLiveResize),
-            methodSignature: (@convention(c)  (AnyObject, Selector) -> ()).self,
-            hookSignature: (@convention(block)  (AnyObject) -> ()).self) { store in {
-                object in
-                (object as? NSView)?.isLiveResizing = false
-                store.original(object, #selector(NSView.viewDidEndLiveResize))
-                }
-            }
-        } catch {
-           // handle error
-           debugPrint(error)
         }
     }
     

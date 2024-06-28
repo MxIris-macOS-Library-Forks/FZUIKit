@@ -15,7 +15,8 @@
                                 
         public let imageView = ImageView().isHidden(true)
         public let videoView = ScrollPlayerView().isHidden(true)
-        private let player = AVPlayer()
+        /// The player for media assets.
+        public let player = AVPlayer()
         private var playbackObserver: AVPlayerTimeObservation?
         private var previousVideoPlaybackState: AVPlayer.State = .isStopped
         private var _mediaURL: URL?
@@ -163,7 +164,9 @@
             if let asset = asset {
                 updatePreviousPlaybackState()
                 player.pause()
-                player.replaceCurrentItem(with: AVPlayerItem(asset: asset))
+                let item = AVPlayerItem(asset: asset)
+                player.replaceCurrentItem(with: item)
+                setupAssetStatusHandler()
                 showVideoView()
                 if videoPlaybackOption == .autostart || (videoPlaybackOption == .previousPlaybackState && previousVideoPlaybackState == .isPlaying) {
                     player.play()
@@ -175,6 +178,32 @@
                 _mediaURL = nil
             }
         }
+        
+        /// The handler that gets called when the status of the media asset changes.
+        open var assetStatusHandler: ((AVPlayerItem.Status)->())? = nil {
+            didSet { setupAssetStatusHandler() }
+        }
+        
+        /// Sets the handler that gets called when the status of the media asset changes.
+        @discardableResult
+        open func assetStatusHandler(_ handler: ((AVPlayerItem.Status)->())?) -> Self {
+            set(\.assetStatusHandler, to: handler)
+        }
+        
+        func setupAssetStatusHandler() {
+            if let item = player.currentItem {
+                if item.status == .readyToPlay {
+                    self.assetStatusHandler?(.readyToPlay)
+                } else {
+                    item.statusHandler = { [weak self] status in
+                        guard let self = self else { return }
+                        self.assetStatusHandler?(status)
+                    }
+                }
+            }
+        }
+        
+        var assetStatusObservation: KeyValueObservation?
         
         /// The media type currently displayed.
         open var mediaType: MediaType? {
@@ -800,6 +829,7 @@
             updatePreviousPlaybackState()
             player.pause()
             playbackObserver = nil
+            assetStatusObservation = nil
             player.replaceCurrentItem(with: nil)
             videoView.isHidden = true
         }
