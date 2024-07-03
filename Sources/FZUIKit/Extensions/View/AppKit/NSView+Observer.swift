@@ -89,11 +89,7 @@ class ObserverGestureRecognizer: ReattachingGestureRecognizer {
         guard let view = view, let menuProvider = view.menuProvider else { return }
         let location = event.location(in: view)
         if let menu = menuProvider(location) {
-            menu.handlers.didClose = {
-                if view.menu == menu {
-                    view.menu = nil
-                }
-            }
+            menu.setupDelegateProxy(itemProviderView: view)
             view.menu = menu
         } else {
             view.menu = nil
@@ -103,7 +99,7 @@ class ObserverGestureRecognizer: ReattachingGestureRecognizer {
     var didStartDragging = false
     var mouseDownLocation: CGPoint = .zero
     static let minimumDragDistance: CGFloat = 4.0
-    
+
     func setupDraggingSession(for event: NSEvent) {
         guard let view = view, let canDrag = view.dragHandlers.canDrag, !didStartDragging else { return }
         let location = event.location(in: view)
