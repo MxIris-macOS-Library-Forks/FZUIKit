@@ -44,7 +44,7 @@ public extension BackgroundColorSettable where Self: NSView {
     /**
      Sets the background color of the view.
      
-     Using this property turns the view into a layer-backed view. The value can be animated via `animator()`.
+     Using this property turns the view into a layer-backed view.
      */
     @discardableResult
     func backgroundColor(_ color: NSUIColor?) -> Self {
@@ -66,12 +66,14 @@ public extension BackgroundColorSettable where Self: NSTextField {
 extension NSView {
     @objc var backgroundColorAnimatable: NSColor? {
         get { layer?.backgroundColor?.nsColor }
-        set {
-            layer?.backgroundColor = newValue?.cgColor
-        }
+        set { layer?.backgroundColor = newValue?.cgColor }
     }
 
     struct DynamicColors {
+        var background: NSColor? {
+            didSet { if background?.isDynamic == false { background = nil } }
+        }
+
         var shadow: NSColor? {
             didSet { if shadow?.isDynamic == false { shadow = nil } }
         }
@@ -82,10 +84,6 @@ extension NSView {
 
         var border: NSColor? {
             didSet { if border?.isDynamic == false { border = nil } }
-        }
-
-        var background: NSColor? {
-            didSet { if background?.isDynamic == false { background = nil } }
         }
 
         var needsAppearanceObserver: Bool {
@@ -113,14 +111,12 @@ extension NSView {
     }
 
     func setupEffectiveAppearanceObserver() {
-        if dynamicColors.needsAppearanceObserver {
-            if effectiveAppearanceObservation == nil {
-                effectiveAppearanceObservation = observeChanges(for: \.effectiveAppearance) { [weak self] _, _ in
-                    self?.updateEffectiveColors()
-                }
-            }
-        } else {
+        if !dynamicColors.needsAppearanceObserver {
             effectiveAppearanceObservation = nil
+        } else if effectiveAppearanceObservation == nil {
+            effectiveAppearanceObservation = observeChanges(for: \.effectiveAppearance) { [weak self] _, _ in
+                self?.updateEffectiveColors()
+            }
         }
     }
 
@@ -129,9 +125,16 @@ extension NSView {
         dynamicColors.update(\.background, cgColor: layer?.backgroundColor)
         dynamicColors.update(\.border, cgColor: layer?.borderColor)
         dynamicColors.update(\.innerShadow, cgColor: innerShadowLayer?.shadowColor)
+        setupEffectiveAppearanceObserver()
 
+        if let color = dynamicColors.background?.resolvedColor(for: self).cgColor {
+            layer?.backgroundColor = color
+        }
         if let color = dynamicColors.shadow?.resolvedColor(for: self).cgColor {
             layer?.shadowColor = color
+        }
+        if let color = dynamicColors.innerShadow?.resolvedColor(for: self).cgColor {
+            innerShadowLayer?.shadowColor = color
         }
         if let color = dynamicColors.border?.resolvedColor(for: self).cgColor {
             if let dashedBorderLayer = dashedBorderLayer {
@@ -139,16 +142,6 @@ extension NSView {
             } else {
                 layer?.borderColor = color
             }
-        }
-        if let color = dynamicColors.background?.resolvedColor(for: self).cgColor {
-            layer?.backgroundColor = color
-        }
-        if let color = dynamicColors.innerShadow?.resolvedColor(for: self).cgColor {
-            innerShadowLayer?.shadowColor = color
-        }
-
-        if dynamicColors.needsAppearanceObserver == false {
-            effectiveAppearanceObservation = nil
         }
     }
 }

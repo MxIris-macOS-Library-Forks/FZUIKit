@@ -14,7 +14,7 @@
         /// Sets type of focus ring drawn around the view.
         @discardableResult
         public func focusRingType(_ type: NSFocusRingType) -> Self {
-            self.focusRingType = type
+            focusRingType = type
             return self
         }
         

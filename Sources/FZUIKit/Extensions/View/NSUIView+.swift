@@ -32,7 +32,7 @@
         }
 
         /// Updates the anchor point of the view’s bounds rectangle while retaining the position.
-        public func setAnchorPoint(_ anchorPoint: CGPoint) {
+        func setAnchorPoint(_ anchorPoint: CGPoint) {
             guard let layer = optionalLayer else { return }
             guard layer.anchorPoint != anchorPoint else { return }
             var newPoint = CGPoint(bounds.size.width * anchorPoint.x, bounds.size.height * anchorPoint.y)
@@ -356,7 +356,8 @@
         
         /// Sets the background gradient of the view.
         public func gradient( _ gradient: Gradient?) -> Self {
-            set(\.gradient, to: gradient)
+            self.gradient = gradient
+            return self
         }
 
         internal var gradientLocations: [CGFloat] {
@@ -481,14 +482,14 @@
         
         /// Sets the rotation of the view as euler angles in degrees.
         @discardableResult
-        public func rotation(_ rotation: CGVector3) -> Self {
+        @objc open func rotation(_ rotation: CGVector3) -> Self {
             self.rotation = rotation
             return self
         }
         
         /// Sets the rotation of the view as euler angles in radians.
         @discardableResult
-        public func rotationInRadians(_ rotation: CGVector3) -> Self {
+        @objc open func rotationInRadians(_ rotation: CGVector3) -> Self {
             self.rotationInRadians = rotation
             return self
         }
