@@ -13,9 +13,9 @@
         import UIKit
     #endif
 
-    public extension NSUIStackView {
+    extension NSUIStackView {
         /// Reverses the order of the arranged subviews.
-        func reverseArrangedSubviews() {
+        @objc open func reverseArrangedSubviews() {
             let arrangedViews = arrangedSubviews.reversed()
             for arrangedView in arrangedViews {
                 removeArrangedSubview(arrangedView)
@@ -24,18 +24,25 @@
         }
 
         /// Removes all arranged subviews.
-        func removeAllArrangedSubviews() {
+        @objc open func removeAllArrangedSubviews() {
             arrangedSubviews.forEach { self.removeArrangedSubview($0) }
         }
 
         /// The array of views arranged by the stack view.
-        var arrangedViews: [NSUIView] {
+        @objc open var arrangedViews: [NSUIView] {
             get { arrangedSubviews }
             set {
                 guard arrangedSubviews != newValue else { return }
                 removeAllArrangedSubviews()
                 newValue.forEach { self.addArrangedSubview($0) }
             }
+        }
+        
+        /// Sets the views arranged by the stack view.
+        @discardableResult
+        @objc open func arrangedSubviews(_ views: [NSUIView]) -> Self {
+            self.arrangedViews = views
+            return self
         }
     }
 #endif
