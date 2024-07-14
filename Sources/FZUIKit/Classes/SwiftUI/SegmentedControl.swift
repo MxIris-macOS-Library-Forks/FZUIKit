@@ -10,79 +10,99 @@
     import SwiftUI
 
     public struct SegmentedControl: NSViewRepresentable {
-        public class Coordinator: NSObject {
-            var parent: SegmentedControl
-            init(segmentedControl: SegmentedControl) {
-                parent = segmentedControl
-            }
-
-            @objc func selectedIndexChanged(_ sender: NSSegmentedControl) {
-                parent.segments = sender.segments
-                parent.indexOfSelectedSegment = sender.indexOfSelectedItem
-            }
-        }
-
-        public typealias NSViewType = NSSegmentedControl
-
+        /// The selected segments.
+        @State public private(set) var selectedSegments: [NSSegment] = []
+        
+        var segments: [NSSegment] = []
+        var trackingMode: NSSegmentedControl.SwitchTracking = .selectOne
+        var style: NSSegmentedControl.Style = .automatic
+        
+        /// Sets the segments displayed by the segmented control.
         public func segments(@NSSegmentedControl.Builder segments: () -> [NSSegment]) -> Self {
-            self.segments = segments()
-            return self
+            var view = self
+            view.segments = segments()
+            view.selectedSegments = segments().filter({$0.isSelected})
+            return view
+        }
+        
+        /// Sets the segments displayed by the segmented control.
+        public func segments(_ segments: [NSSegment]) -> Self {
+            var view = self
+            view.segments = segments
+            view.selectedSegments = segments.filter({$0.isSelected})
+            return view
         }
 
+        /// Sets the type of tracking behavior the control exhibits.
         public func trackingMode(_ trackingMode: NSSegmentedControl.SwitchTracking) -> Self {
-            self.trackingMode = trackingMode
-            return self
+            var view = self
+            view.trackingMode = trackingMode
+            return view
         }
 
+        /// Sets the visual style used to display the control.
         public func style(_ style: NSSegmentedControl.Style) -> Self {
-            self.style = style
-            return self
+            var view = self
+            view.style = style
+            return view
         }
 
-        @State public private(set) var segments: [NSSegment] = []
-        @State public private(set) var trackingMode: NSSegmentedControl.SwitchTracking = .selectOne
-        @State public private(set) var indexOfSelectedSegment: Int = 0
-        @State public private(set) var style: NSSegmentedControl.Style = .automatic
-
+        /**
+         Creates a segmented control view with the specified segments.
+         
+         - Parameter segments: The segments displayed by the segmented control.
+         */
+        public init(@NSSegmentedControl.Builder segments: () -> [NSSegment]) {
+            self.segments = segments()
+        }
+        
         public func makeNSView(context: Context) -> NSSegmentedControl {
             let segmentedControl = NSSegmentedControl(segments: segments)
-            segmentedControl.trackingMode = trackingMode
-            segmentedControl.segmentStyle = style
-            if indexOfSelectedSegment >= 0 {
-                segmentedControl.setSelected(true, forSegment: indexOfSelectedSegment)
-            }
+            updateNSView(segmentedControl, context: context)
+            selectedSegments = segmentedControl.selectedSegments
             segmentedControl.target = context.coordinator
             segmentedControl.action = #selector(Coordinator.selectedIndexChanged(_:))
             return segmentedControl
         }
 
-        public func updateNSView(_ nsView: NSSegmentedControl, context _: Context) {
-            nsView.segments = segments
-            nsView.trackingMode = trackingMode
-            nsView.segmentStyle = style
-            if indexOfSelectedSegment >= 0 {
-                nsView.setSelected(true, forSegment: indexOfSelectedSegment)
-            }
+        public func updateNSView(_ segmentedControl: NSSegmentedControl, context: Context) {
+            segmentedControl.segments = segments
+            segmentedControl.trackingMode = trackingMode
+            segmentedControl.segmentStyle = style
+            segmentedControl.isEnabled = context.environment.isEnabled
+            segmentedControl.sizeToFit()
         }
 
         public func makeCoordinator() -> Coordinator {
-            Coordinator(segmentedControl: self)
+            Coordinator(self)
+        }
+        
+        /// The coordinator of the segmented control.
+        public class Coordinator: NSObject {
+            var parent: SegmentedControl
+            init(_ parent: SegmentedControl) {
+                self.parent = parent
+            }
+
+            @objc func selectedIndexChanged(_ sender: NSSegmentedControl) {
+                parent.segments = sender.segments
+                parent.selectedSegments = sender.selectedSegments
+            }
         }
     }
 
     struct SegmentedControl_Preview: PreviewProvider {
         static var previews: some View {
-            SegmentedControl()
-                .trackingMode(.selectOne)
-                .style(.texturedRounded)
-                .segments {
-                    NSSegment("Segment 1")
-                        .isSelected(true)
-                    NSSegment("Segment 2")
-                    NSSegment("Segment 3")
-                }
-                .previewLayout(PreviewLayout.sizeThatFits)
-                .padding()
+            SegmentedControl() {
+                NSSegment("Segment 1")
+                    .isSelected(true)
+                NSSegment("Segment 2")
+                NSSegment("Segment 3")
+            }
+            .trackingMode(.selectOne)
+            .style(.texturedRounded)
+            .previewLayout(PreviewLayout.sizeThatFits)
+            .padding()
         }
     }
 

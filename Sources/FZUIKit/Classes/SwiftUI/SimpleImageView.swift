@@ -12,98 +12,114 @@ import SwiftUI
 
     @available(macOS 12.0, *)
     public struct SimpleImageView: NSViewRepresentable {
-        public typealias NSViewType = ImageView
 
-        private var imageScaling: ImageView.ImageScaling
-        private var image: NSImage?
-        private var images: [NSImage]
-        private var symbolConfiguration: NSImage.SymbolConfiguration?
-        private var tintColor: NSColor?
-        private var animates: Bool
+        var image: NSImage?
+        var images: [NSImage] = []
+        var imageScaling: ImageView.ImageScaling = .scaleToFit
+        var symbolConfiguration: NSImage.SymbolConfiguration?
+        var tintColor: NSColor?
+        var animates: Bool = false
 
-        public init(images: [NSImage],
-                    imageScaling: ImageView.ImageScaling)
-        {
-            image = nil
-            self.imageScaling = imageScaling
-            self.images = images
-            tintColor = nil
-            symbolConfiguration = nil
-            animates = false
-        }
-
-        public init(image: NSImage,
-                    imageScaling: ImageView.ImageScaling, animates: Bool = true, symbolConfiguration: NSImage.SymbolConfiguration? = nil, tintColor: NSColor? = nil)
-        {
+        /**
+         Creates a image view with the specified image.
+         
+         - Parameter image: The image.
+         */
+        public init(_ image: NSImage) {
             self.image = image
-            self.imageScaling = imageScaling
-            self.tintColor = tintColor
-            self.symbolConfiguration = symbolConfiguration
-            images = []
-            self.animates = animates
         }
 
-        public init(symbolName: String, symbolConfiguration: NSImage.SymbolConfiguration? = nil, tintColor: NSColor? = nil) {
-            image = NSImage(systemSymbolName: symbolName)
-            self.symbolConfiguration = symbolConfiguration
-            self.tintColor = tintColor
+        /**
+         Creates a image view with the specified system symbol image.
+         
+         - Parameter systemName: The name of the system symbol image. Use the SF Symbols app to look up the names of system symbol images.
+         */
+        public init(systemName: String) {
+            image = NSImage(systemSymbolName: systemName)
             imageScaling = .none
-            images = []
-            animates = false
+        }
+        
+        /**
+         Creates a image view with the specified images.
+         
+         - Parameter images: The images.
+         */
+        public init(_ images: [NSImage]) {
+            self.images = images
         }
 
         public func makeNSView(context _: Context) -> ImageView {
-            let view = ImageView()
+            let imageView = ImageView()
             if let image = image {
-                view.image = image
+                imageView.image = image
             } else {
-                view.images = images
+                imageView.images = images
             }
-            view.imageScaling = imageScaling
-            view.tintColor = tintColor
-            view.symbolConfiguration = symbolConfiguration
+            imageView.imageScaling = imageScaling
+            imageView.tintColor = tintColor
+            imageView.symbolConfiguration = symbolConfiguration
             if animates {
-                view.startAnimating()
+                imageView.startAnimating()
             } else {
-                view.stopAnimating()
+                imageView.stopAnimating()
             }
+            return imageView
+        }
+
+        public func updateNSView(_ imageView: ImageView, context _: Context) {
+            if let image = image {
+                imageView.image = image
+            } else {
+                imageView.images = images
+            }
+            imageView.imageScaling = imageScaling
+            imageView.symbolConfiguration = symbolConfiguration
+            imageView.tintColor = tintColor
+            if animates {
+                imageView.startAnimating()
+            } else {
+                imageView.stopAnimating()
+            }
+        }
+        
+        /// Sets the image displayed in the image view.
+        public func image(_ image: NSImage?) -> SimpleImageView {
+            var view = self
+            view.image = image
+            view.images = []
+            return view
+        }
+        
+        /// Sets the images displayed by the image view.
+        public func images(_ images: [NSImage]) -> SimpleImageView {
+            var view = self
+            view.images = images
+            view.image = nil
             return view
         }
 
-        public func updateNSView(_ nsView: ImageView, context _: Context) {
-            if let image = image {
-                nsView.image = image
-            } else {
-                nsView.images = images
-            }
-            nsView.imageScaling = imageScaling
-            nsView.symbolConfiguration = symbolConfiguration
-            nsView.tintColor = tintColor
-            if animates {
-                nsView.startAnimating()
-            } else {
-                nsView.stopAnimating()
-            }
-        }
-
+        /// Sets the image scaling.
         public func imageScaling(_ imageScaling: ImageView.ImageScaling) -> SimpleImageView {
             var view = self
             view.imageScaling = imageScaling
             return view
         }
 
+        /// Sets the symbol configuration of the image.
         public func symbolConfiguration(_ configuration: NSImage.SymbolConfiguration?) -> SimpleImageView {
             var view = self
             view.symbolConfiguration = configuration
             return view
         }
 
+        /// Sets the image tint color for template and symbol images.
         public func tintColor(_ tintColor: NSColor?) -> SimpleImageView {
             var view = self
             view.tintColor = tintColor
             return view
         }
 
+        /// Sets the Boolean value that indicates whether the image animates.
         public func animates(_ animates: Bool) -> SimpleImageView {
             var view = self
             view.animates = animates

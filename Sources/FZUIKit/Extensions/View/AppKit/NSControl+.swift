@@ -9,14 +9,6 @@
 import AppKit
 
 extension NSControl {
-    /// Performs the `action`.
-    public func performAction() {
-        if let actionBlock = actionBlock {
-            actionBlock(self)
-        } else if let action = action, let target = target, target.responds(to: action) {
-            _ = target.perform(action)
-        }
-    }
     
     /// Sets the font.
     @discardableResult
@@ -116,6 +108,12 @@ extension NSControl {
         self.formatter = formatter
         return self
     }
+}
+
+extension NSControl.StateValue: ExpressibleByBooleanLiteral {
+    public init(booleanLiteral value: Bool) {
+        self = value ? .on : .off
+    }    
 }
 
 #endif

@@ -10,17 +10,21 @@
     import AppKit
     import FZSwiftUtils
     public extension NSButton {
+        func test() {
+            NSButton.flexiblePush("").state(.on)
+        }
+        
         /**
          Creates a button with the specified title.
          
          - Parameters:
             - title: The title of the button.
-            - type: The bezel style of the button.
+            - style: The bezel style of the button.
             - action: The action of the button.
          */
-        convenience init(_ title: String, type: BezelStyle = .push, action: ActionBlock? = nil) {
+        convenience init(_ title: String, style: BezelStyle = .push, action: ActionBlock? = nil) {
             self.init(title: title, target: nil, action: nil)
-            self.bezelStyle = type
+            self.bezelStyle = style
             self.actionBlock = action
         }
         
@@ -30,45 +34,415 @@
          - Parameters:
             - title: The title of the button.
             - image: The image of the button.
-            - type: The bezel style of the button.
+            - style: The bezel style of the button.
             - action: The action of the button.
          */
-        convenience init(_ title: String? = nil, image: NSImage, type: BezelStyle? = nil, action: ActionBlock? = nil) {
+        convenience init(_ title: String? = nil, image: NSImage, style: BezelStyle? = nil, action: ActionBlock? = nil) {
             self.init(title: title ?? "", target: nil, action: nil)
             self.image = image
-            if let type = type {
-                self.bezelStyle = type
-            } else if title == nil  {
+            if let style = style {
+                self.bezelStyle = style
+            } else if title == nil {
                 self.bezelStyle = .smallSquare
                 self.isBordered = false
-                self.isTransparent = true
             }
             self.actionBlock = action
+            sizeToFit()
         }
         
         /**
-         Creates a checkbox button with the specified title.
+         Creates a button with the specified symbol image.
          
          - Parameters:
             - title: The title of the button.
+            - symbolName: The name of the symbol image.
+            - style: The bezel style of the button.
             - action: The action of the button.
          */
-        convenience init(checkbox title: String, action: ActionBlock? = nil) {
+        @available(macOS 11.0, *)
+        convenience init(_ title: String? = nil, symbolName: String, style: BezelStyle? = nil, action: ActionBlock? = nil) {
+            self.init(title: title ?? "", target: nil, action: nil)
+            self.image = NSImage(systemSymbolName: symbolName)
+            if let style = style {
+                self.bezelStyle = style
+            } else if title == nil {
+                self.bezelStyle = .smallSquare
+                self.isBordered = false
+            }
+            actionBlock = action
+            sizeToFit()
+        }
+        
+        /**
+         Creates a checkbox button.
+         
+         - Parameters:
+            - title: The title of the button.
+            - isChecked: A Boolean value that indicates whether the checkbox is checked.
+            - action: The action of the button.
+         */
+        convenience init(checkbox title: String, isChecked: Bool = false, action: ActionBlock? = nil) {
             self.init(checkboxWithTitle: title, target: nil, action: nil)
+            self.state = isChecked ? .on : .off
             self.actionBlock = action
         }
         
         /**
-         Creates a radio button with the specified title.
+         Creates a radio button.
          
          - Parameters:
             - title: The title of the button.
+            - isSelected: A Boolean value that indicates whether the radio is selected.
             - action: The action of the button.
          */
-        convenience init(radio title: String, action: ActionBlock? = nil) {
+        convenience init(radio title: String, isSelected: Bool = false, action: ActionBlock? = nil) {
             self.init(radioButtonWithTitle: title, target: nil, action: nil)
+            self.state = isSelected ? .on : .off
             self.actionBlock = action
         }
+        
+        /**
+         Creates a image button.
+         
+         - Parameter image: The image of the button.
+         */
+        static func image(_ image: NSUIImage) -> NSButton {
+            NSButton(image: image)
+        }
+        
+        /**
+         Creates a image button with a symbol image.
+         
+         - Parameter symbolName: The name of the symbol image.
+         */
+        @available(macOS 11.0, *)
+        static func image(symbolName: String) -> NSButton {
+            NSButton(symbolName: symbolName)
+        }
+        
+        /**
+         Creates a checkbox button.
+         
+         - Parameters:
+            - title: The title of the button.
+            - isChecked: A Boolean value that indicates whether the checkbox is checked.
+         */
+        static func checkbox(_ title: String, isChecked: Bool = false) -> NSButton {
+            NSButton(checkbox: title, isChecked: isChecked)
+        }
+        
+        /**
+         Creates a radio button.
+         
+         - Parameters:
+            - title: The title of the button.
+            - isSelected: A Boolean value that indicates whether the radio is checked.
+         */
+        static func radio(_ title: String, isSelected: Bool = false) -> NSButton {
+            NSButton(radio: title, isSelected: isSelected)
+        }
+        
+        /**
+         Creates a push button.
+         
+         - Parameter title: The title of the button.
+         */
+        static func push(_ title: String) -> NSButton {
+            NSButton(title).bezelStyle(.rounded)
+        }
+        
+        /**
+         Creates a push button.
+         
+         - Parameters:
+            - title: The title of the button.
+            - image: The image of the button.
+         */
+        static func push(_ title: String? = nil, image: NSImage) -> NSButton {
+            NSButton(title, image: image, style: .rounded)
+        }
+        
+        /**
+         Creates a push button.
+         
+         - Parameters:
+            - title: The title of the button.
+            - symbolName: The name of the symbol image.
+         */
+        @available(macOS 11.0, *)
+        static func push(_ title: String? = nil, symbolName: String) -> NSButton {
+            NSButton(title ?? "").image(NSImage(systemSymbolName: symbolName)).bezelStyle(.rounded)
+        }
+        
+        /**
+         Creates a button with a flexible height to accommodate longer text labels or an image.
+         
+         - Parameter title: The title of the button.
+         */
+        static func flexiblePush(_ title: String) -> NSButton {
+            NSButton(title).bezelStyle(.regularSquare)
+        }
+        
+        /**
+         Creates a push button.
+         
+         - Parameters:
+            - title: The title of the button.
+            - image: The image of the button.
+         */
+        static func flexiblePush(_ title: String? = nil, image: NSImage) -> NSButton {
+            NSButton(title, image: image, style: .regularSquare)
+        }
+        
+        /**
+         Creates a push button.
+         
+         - Parameters:
+            - title: The title of the button.
+            - symbolName: The name of the symbol image.
+         */
+        @available(macOS 11.0, *)
+        static func flexiblePush(_ title: String? = nil, symbolName: String) -> NSButton {
+            NSButton(title ?? "").image(NSImage(systemSymbolName: symbolName)).bezelStyle(.regularSquare)
+        }
+        
+        /**
+         Creates a button that’s appropriate for a toolbar item.
+         
+         - Parameter title: The title of the button.
+         */
+        static func toolbar(_ title: String) -> NSButton {
+            NSButton(title).bezelStyle(.texturedRounded)
+        }
+        
+        /**
+         Creates a button that’s appropriate for a toolbar item.
+         
+         - Parameters:
+            - title: The title of the button.
+            - image: The image of the button.
+         */
+        static func toolbar(_ title: String? = nil, image: NSImage) -> NSButton {
+            NSButton(title ?? "", image: image, style: .texturedRounded)
+        }
+        
+        /**
+         Creates a button that’s appropriate for a toolbar item.
+         
+         - Parameters:
+            - title: The title of the button.
+            - symbolName: The name of the symbol image.
+         */
+        @available(macOS 11.0, *)
+        static func toolbar(_ title: String? = nil, symbolName: String) -> NSButton {
+            NSButton(title ?? "").image(NSImage(systemSymbolName: symbolName)).bezelStyle(.texturedRounded)
+        }
+        
+        /**
+         Creates a button that’s typically used in the context of an accessory toolbar for buttons that narrow the focus of a search or other operation.
+         
+         - Parameter title: The title of the button.
+         */
+        static func accessoryBar(_ title: String) -> NSButton {
+            NSButton(title).bezelStyle(.recessed).buttonType(.pushOnPushOff)
+        }
+        
+        /**
+         Creates a button that’s typically used in the context of an accessory toolbar for buttons that narrow the focus of a search or other operation.
+         
+         - Parameters:
+            - title: The title of the button.
+            - symbolName: The name of the symbol image.
+         */
+        static func accessoryBar(_ title: String? = nil, image: NSImage) -> NSButton {
+            NSButton(title ?? "", image: image, style: .recessed).buttonType(.pushOnPushOff)
+        }
+        
+        /**
+         Creates a button that’s typically used in the context of an accessory toolbar for buttons that narrow the focus of a search or other operation.
+         
+         - Parameters:
+            - title: The title of the button.
+            - image: The image of the button.
+         */
+        @available(macOS 11.0, *)
+        static func accessoryBar(_ title: String? = nil, symbolName: String) -> NSButton {
+            NSButton(title ?? "").image(NSImage(systemSymbolName: symbolName)).bezelStyle(.recessed).buttonType(.pushOnPushOff)
+        }
+        
+        /**
+         Creates a button that you use for extra actions in an accessory toolbar.
+         
+         - Parameter title: The title of the button.
+         */
+        static func accessoryBarAction(_ title: String) -> NSButton {
+            NSButton(title).bezelStyle(.roundRect)
+        }
+        
+        /**
+         Creates a button that you use for extra actions in an accessory toolbar.
+         
+         - Parameters:
+            - title: The title of the button.
+            - image: The image of the button.
+         */
+        static func accessoryBarAction(_ title: String? = nil, image: NSImage) -> NSButton {
+            NSButton(title ?? "", image: image, style: .roundRect)
+        }
+        
+        /**
+         Creates a button that you use for extra actions in an accessory toolbar.
+         
+         - Parameters:
+            - title: The title of the button.
+            - symbolName: The name of the symbol image.
+         */
+        @available(macOS 11.0, *)
+        static func accessoryBarAction(_ title: String? = nil, symbolName: String) -> NSButton {
+            NSButton(title ?? "").image(NSImage(systemSymbolName: symbolName)).bezelStyle(.roundRect)
+        }
+        
+        /**
+         Creates a round button that displays the specified character.
+         
+         - Parameter character: The character of the button.
+         */
+        static func circular(_ character: Character) -> NSButton {
+            NSButton(String(character)).bezelStyle(.circular)
+        }
+        
+        /**
+         Creates a round button that displays the specified image.
+         
+         - Parameter image: The image of the button.
+         */
+        static func circular(_ image: NSUIImage) -> NSButton {
+            NSButton(image: image, style: .circular)
+        }
+        
+        /**
+         Creates a round button that displays the specified symbol image.
+         
+         - Parameter symbolName: The name of the symbol image.
+         */
+        @available(macOS 11.0, *)
+        static func circular(symbolName: String) -> NSButton {
+            NSButton(symbolName: symbolName, style: .circular)
+        }
+        
+        /**
+         Creates a button for displaying additional information.
+         
+         - Parameter title: The title of the button.
+         */
+        static func badge(_ title: String) -> NSButton {
+            NSButton(title).bezelStyle(.badge)
+        }
+        
+        /**
+         Creates a button for displaying additional information.
+
+         - Parameters:
+            - title: The title of the button.
+            - image: The image of the button.
+         */
+        static func badge(_ title: String? = nil, image: NSUIImage) -> NSButton {
+            NSButton(title, image: image, style: .badge)
+        }
+        
+        /**
+         Creates a button for displaying additional information.
+
+         - Parameters:
+            - title: The title of the button.
+            - symbolName: The name of the symbol image.
+         */
+        @available(macOS 11.0, *)
+        static func badge(_ title: String? = nil, symbolName: String) -> NSButton {
+            NSButton(title ?? "").image(NSImage(systemSymbolName: symbolName)).bezelStyle(.badge)
+        }
+                
+        /**
+         Creates a square bezeled button that displays the specified character.
+         
+         - Parameter title: The title of the button.
+         */
+        static func smallSquare(_ title: String) -> NSButton {
+            NSButton(title).bezelStyle(.smallSquare)
+        }
+        
+        /**
+         Creates a square bezeled button that displays the specified image.
+         
+         - Parameters:
+            - title: The title of the button.
+            - symbolName: The name of the symbol image.
+         */
+        static func smallSquare(_ title: String? = nil, image: NSUIImage) -> NSButton {
+            NSButton(title, image: image, style: .smallSquare)
+        }
+        
+        /**
+         Creates a square bezeled button that displays the specified symbol image.
+         
+         - Parameters:
+            - title: The title of the button.
+            - image: The image of the button.
+         */
+        @available(macOS 11.0, *)
+        static func smallSquare(_ title: String? = nil, symbolName: String) -> NSButton {
+            NSButton(title ?? "").image(NSImage(systemSymbolName: symbolName)).bezelStyle(.smallSquare)
+        }
+        
+        /**
+         Creates a button with a  button style based on the button’s contents and position within the window.
+         
+         - Parameter title: The title of the button.
+         */
+        @available(macOS 14.0, *)
+        static func automatic(_ title: String) -> NSButton {
+            NSButton(title).bezelStyle(.automatic)
+        }
+        
+        /**
+         Creates a button with a  button style based on the button’s contents and position within the window.
+         
+         - Parameters:
+            - title: The title of the button.
+            - image: The image of the button.
+         */
+        @available(macOS 14.0, *)
+        static func automatic(_ title: String? = nil, image: NSImage) -> NSButton {
+            NSButton(title, image: image, style: .automatic).image(image)
+        }
+        
+        /**
+         Creates a button with a  button style based on the button’s contents and position within the window.
+         
+         - Parameters:
+            - title: The title of the button.
+            - symbolName: The name of the symbol image.
+         */
+        @available(macOS 14.0, *)
+        static func automatic(_ title: String? = nil, symbolName: String) -> NSButton {
+            NSButton(title ?? "").image(NSImage(systemSymbolName: symbolName)).bezelStyle(.automatic)
+        }
+        
+        /// Creates a button with a disclosure triangle.
+        static var disclosure:  NSButton {
+            NSButton().buttonType(.onOff).bezelStyle(.disclosure)
+        }
+        
+        /// Creates a button with a bezeled disclosure triangle.
+        static var pushDisclosure: NSButton {
+            NSButton().buttonType(.onOff).bezelStyle(.roundedDisclosure)
+        }
+        
+        /// Creates a button with a question mark, providing the standard help button look.
+        static var help: NSButton {
+            NSButton("").bezelStyle(.helpButton)
+        }
+        
         
         /// The button type which affects its user interface and behavior when clicked.
         var buttonType: ButtonType {
@@ -383,6 +757,13 @@
         @discardableResult
         func state(_ state: NSControl.StateValue) -> Self {
             self.state = state
+            return self
+        }
+        
+        /// Sets the button’s state.
+        @discardableResult
+        func state(_ isOn: Bool) -> Self {
+            self.state = isOn ? .on : .off
             return self
         }
         
