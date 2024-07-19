@@ -57,10 +57,12 @@ public extension NSUIColor {
     final func hslaComponents() -> HSLAComponents {
         var (h, s, b, a) = (CGFloat(), CGFloat(), CGFloat(), CGFloat())
         #if os(macOS)
-            let color = withSupportedColorSpace() ?? self
-            color.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        guard let color = withSupportedColorSpace() else {
+            fatalError("Could not convert color to HSBA.")
+        }
+        color.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
         #else
-            getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        getHue(&h, saturation: &s, brightness: &b, alpha: &a)
         #endif
 
         let l = ((2.0 - s) * b) / 2.0
@@ -76,7 +78,7 @@ public extension NSUIColor {
 
         return HSLAComponents(h * 360.0, s, l, a)
     }
-
+    
     /**
      Returns a new color object with the specified lightness value.
 
@@ -84,6 +86,19 @@ public extension NSUIColor {
      - Returns: The new color object.
      */
     func withLightness(_ lightness: CGFloat) -> NSUIColor {
+        #if os(macOS) || os(iOS) || os(tvOS)
+        let dynamic = dynamicColors
+        let light = dynamic.light._withLightness(lightness)
+        guard dynamic.light != dynamic.dark else {
+            return light
+        }
+        return NSUIColor(light: light, dark: dynamic.dark._withLightness(lightness))
+        #else
+        return _withLightness(lightness)
+        #endif
+    }
+    
+    internal func _withLightness(_ lightness: CGFloat) -> NSUIColor {
         var hslaComponents = hslaComponents()
         hslaComponents.lightness = lightness.clamped(to: 0.0...1.0)
         return NSUIColor(hslaComponents)
@@ -91,23 +106,55 @@ public extension NSUIColor {
 }
 
 /// The HSLA (hue, saturation, lightness, alpha) components of a color.
-public struct HSLAComponents {
+public struct HSLAComponents: Hashable {
     /// The hue component of the color.
     public var hue: CGFloat
+    
+    /// Sets the hue component of the color.
+    @discardableResult
+    public func hue(_ hue: CGFloat) -> Self {
+        var components = self
+        components.hue = hue
+        return components
+    }
 
     /// The saturation component of the color.
     public var saturation: CGFloat {
         didSet { saturation = saturation.clamped(to: 0.0...1.0) }
+    }
+    
+    /// Sets the saturation component of the color.
+    @discardableResult
+    public func saturation(_ saturation: CGFloat) -> Self {
+        var components = self
+        components.saturation = saturation
+        return components
     }
 
     /// The lightness component of the color.
     public var lightness: CGFloat {
         didSet { lightness = lightness.clamped(to: 0.0...1.0) }
     }
+    
+    /// Sets the lightness component of the color.
+    @discardableResult
+    public func lightness(_ lightness: CGFloat) -> Self {
+        var components = self
+        components.lightness = lightness
+        return components
+    }
 
     /// The alpha value of the color.
     public var alpha: CGFloat {
         didSet { alpha = alpha.clamped(to: 0.0...1.0) }
+    }
+    
+    /// Sets the alpha value of the color.
+    @discardableResult
+    public func alpha(_ alpha: CGFloat) -> Self {
+        var components = self
+        components.alpha = alpha
+        return components
     }
 
     /// Creates HSLA components with the specified hue, saturation, lightness and alpha components.

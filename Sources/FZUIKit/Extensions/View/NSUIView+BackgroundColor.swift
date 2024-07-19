@@ -9,22 +9,22 @@
 import AppKit
 import FZSwiftUtils
 
-/// A type that provides a background color.
-public protocol BackgroundColorSettable {
+/// The group of methods that are fundamental to all `NSView` objects.
+public protocol NSViewProtocol {
     /// The background color of the object.
     var backgroundColor: NSUIColor? { get set }
 }
 
-extension NSUIView: BackgroundColorSettable {}
+extension NSUIView: NSViewProtocol {}
 
-public extension BackgroundColorSettable where Self: NSView {
+public extension NSViewProtocol where Self: NSView {
     /**
      The background color of the view.
      
      Using this property turns the view into a layer-backed view. The value can be animated via `animator()`.
      */
     var backgroundColor: NSColor? {
-        get { backgroundColorAnimatable }
+        get { dynamicColors.background }
         set {
             wantsLayer = true
             NSView.swizzleAnimationForKey()
@@ -53,7 +53,7 @@ public extension BackgroundColorSettable where Self: NSView {
     }
 }
 
-public extension BackgroundColorSettable where Self: NSTextField {
+public extension NSViewProtocol where Self: NSTextField {
     /// Sets the background color of the text field.
     @discardableResult
     func backgroundColor(_ color: NSUIColor?) -> Self {

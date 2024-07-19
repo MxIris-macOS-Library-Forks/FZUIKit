@@ -12,9 +12,9 @@
 #endif
 import SwiftUI
 
-public extension NSUIColor {
+extension NSUIColor {
     /// Returns the RGBA (red, green, blue, alpha) components of the color.
-    func rgbaComponents() -> RGBAComponents {
+    public func rgbaComponents() -> RGBAComponents {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
 
         #if os(iOS) || os(tvOS) || os(watchOS)
@@ -60,9 +60,17 @@ public extension NSUIColor {
      - Parameter red: The red component value of the new color object, specified as a value from `0.0` to `1.0.` Red values below `0.0` are interpreted as `0.0`, and values above `1.0` are interpreted as `1.0`.
      - Returns: The new color object.
      */
-    func withRed(_ red: CGFloat) -> NSUIColor {
-        let rgba = rgbaComponents()
-        return NSUIColor(red: red, green: rgba.green, blue: rgba.blue, alpha: rgba.alpha)
+    @objc open func withRed(_ red: CGFloat) -> NSUIColor {
+        #if os(macOS) || os(iOS) || os(tvOS)
+        let dynamic = dynamicColors
+        if dynamic.light == dynamic.dark {
+            return NSUIColor(rgbaComponents().red(red))
+        } else {
+           return NSUIColor(light: NSUIColor(dynamic.light.rgbaComponents().red(red)), dark: NSUIColor(dynamic.dark.rgbaComponents().red(red)))
+        }
+        #else
+        return NSUIColor(rgbaComponents().red(red))
+        #endif
     }
 
     /**
@@ -71,9 +79,17 @@ public extension NSUIColor {
      - Parameter green: The green component value of the new color object, specified as a value from `0.0` to `1.0.` Green values below `0.0` are interpreted as `0.0`, and values above `1.0` are interpreted as `1.0`.
      - Returns: The new color object.
      */
-    func withGreen(_ green: CGFloat) -> NSUIColor {
-        let rgba = rgbaComponents()
-        return NSUIColor(red: rgba.red, green: green, blue: rgba.blue, alpha: rgba.alpha)
+    @objc open func withGreen(_ green: CGFloat) -> NSUIColor {
+        #if os(macOS) || os(iOS) || os(tvOS)
+        let dynamic = dynamicColors
+        if dynamic.light == dynamic.dark {
+            return NSUIColor(rgbaComponents().green(green))
+        } else {
+           return NSUIColor(light: NSUIColor(dynamic.light.rgbaComponents().green(green)), dark: NSUIColor(dynamic.dark.rgbaComponents().green(green)))
+        }
+        #else
+        return NSUIColor(rgbaComponents().green(green))
+        #endif
     }
 
     /**
@@ -82,9 +98,17 @@ public extension NSUIColor {
      - Parameter blue: The blue component value of the new color object, specified as a value from `0.0` to `1.0.` Blue values below `0.0` are interpreted as `0.0`, and values above `1.0` are interpreted as `1.0`.
      - Returns: The new color object.
      */
-    func withBlue(_ blue: CGFloat) -> NSUIColor {
-        let rgba = rgbaComponents()
-        return NSUIColor(red: rgba.red, green: rgba.green, blue: blue, alpha: rgba.alpha)
+    @objc open func withBlue(_ blue: CGFloat) -> NSUIColor {
+        #if os(macOS) || os(iOS) || os(tvOS)
+        let dynamic = dynamicColors
+        if dynamic.light == dynamic.dark {
+            return NSUIColor(rgbaComponents().blue(blue))
+        } else {
+           return NSUIColor(light: NSUIColor(dynamic.light.rgbaComponents().blue(blue)), dark: NSUIColor(dynamic.dark.rgbaComponents().blue(blue)))
+        }
+        #else
+        return NSUIColor(rgbaComponents().blue(blue))
+        #endif
     }
 
     /**
@@ -93,9 +117,21 @@ public extension NSUIColor {
      - Parameter alpha: The alpha component value of the new color object, specified as a value from `0.0` to `1.0.` Alpha values below `0.0` are interpreted as `0.0`, and values above `1.0` are interpreted as `1.0`.
      - Returns: The new color object.
      */
-    func withAlpha(_ alpha: CGFloat) -> NSUIColor {
-        let rgba = rgbaComponents()
-        return NSUIColor(red: rgba.red, green: rgba.green, blue: rgba.blue, alpha: alpha)
+    @objc open func withAlpha(_ alpha: CGFloat) -> NSUIColor {
+        #if os(macOS) || os(iOS) || os(tvOS)
+        let dynamic = dynamicColors
+        if dynamic.light == dynamic.dark {
+            #if os(macOS)
+            return withAlphaComponent(alpha.clamped(to: 0...1.0))
+            #else
+            return NSUIColor(rgbaComponents().alpha(alpha))
+            #endif
+        } else {
+           return NSUIColor(light: NSUIColor(dynamic.light.rgbaComponents().alpha(alpha)), dark: NSUIColor(dynamic.dark.rgbaComponents().alpha(alpha)))
+        }
+        #else
+        return NSUIColor(rgbaComponents().alpha(alpha))
+        #endif
     }
 }
 
@@ -105,20 +141,82 @@ public struct RGBAComponents: Codable, Hashable {
     public var red: CGFloat {
         didSet { red = red.clamped(to: 0.0...1.0) }
     }
+    
+    /// Sets the red component of the color.
+    @discardableResult
+    public func red(_ red: CGFloat) -> Self {
+        var components = self
+        components.red = red
+        return components
+    }
 
     /// The green component of the color.
     public var green: CGFloat {
         didSet { green = green.clamped(to: 0.0...1.0) }
+    }
+    
+    /// Sets the green component of the color.
+    @discardableResult
+    public func green(_ green: CGFloat) -> Self {
+        var components = self
+        components.green = green
+        return components
     }
 
     /// The blue component of the color.
     public var blue: CGFloat {
         didSet { blue = blue.clamped(to: 0.0...1.0) }
     }
+    
+    /// Sets the blue component of the color.
+    @discardableResult
+    public func blue(_ blue: CGFloat) -> Self {
+        var components = self
+        components.blue = blue
+        return components
+    }
 
     /// The alpha value of the color.
     public var alpha: CGFloat {
         didSet { alpha = alpha.clamped(to: 0.0...1.0) }
+    }
+    
+    /// Sets the alpha value of the color.
+    @discardableResult
+    public func alpha(_ alpha: CGFloat) -> Self {
+        var components = self
+        components.alpha = alpha
+        return components
+    }
+    
+    /**
+     Blends the color components with the specified components.
+
+     - Parameters:
+        - fraction: The amount of the color to blend between `0.0` and `1.0`.
+        - components: The components to blend.
+     */
+    public mutating func blend(withFraction fraction: CGFloat, of components: RGBAComponents) {
+        let fraction = fraction.clamped(to: 0...1.0)
+        red = red + (fraction * (components.red - red))
+        green = green + (fraction * (components.green - green))
+        blue = blue + (fraction * (components.blue - blue))
+        alpha = alpha + (fraction * (components.alpha - alpha))
+    }
+    
+    /**
+     Blends the color components with the specified components.
+
+     - Parameters:
+        - fraction: The amount of the color to blend between `0.0` and `1.0`.
+        - components: The components to blend.
+     
+     - Returns: The color components blended with the specified components.
+     */
+    public func blended(withFraction fraction: CGFloat, of components: RGBAComponents) -> RGBAComponents {
+        var rgba = self
+        rgba.blend(withFraction: fraction, of: components)
+        return RGBAComponents(rgba.red, rgba.green, rgba.blue, rgba.alpha)
     }
 
     #if os(macOS)
@@ -143,6 +241,7 @@ public struct RGBAComponents: Codable, Hashable {
         Color(red: red, green: green, blue: blue, opacity: alpha)
     }
 
+    /// Components with zero alpha.
     static let zero = RGBAComponents(0.0, 0.0, 0.0, 0.0)
 
     /// Creates RGBA components with the specified red, green, blue and alpha components.
@@ -167,7 +266,6 @@ public extension NSUIColor {
         self.init(red: rgbaComponents.red, green: rgbaComponents.green, blue: rgbaComponents.blue, alpha: rgbaComponents.alpha)
     }
 }
-
 
 public extension Color {
     /// Creates a color using the RGBA components.

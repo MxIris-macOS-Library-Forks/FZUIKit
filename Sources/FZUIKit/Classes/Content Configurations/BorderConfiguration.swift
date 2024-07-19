@@ -82,7 +82,7 @@
 
         #if os(macOS)
             /// A configuration for a border with the control accent color.
-            public static func controlAccent(width: CGFloat = 2.0) -> Self {
+            public static func accentColor(width: CGFloat = 2.0) -> Self {
                 Self(color: .controlAccentColor, width: width)
             }
         #elseif os(iOS)
@@ -152,7 +152,11 @@ extension BorderConfiguration: Codable {
             // optionalLayer?.configurate(using: configuration)
             if configuration.needsDashedBordlerLayer, !configuration.isInvisible {
                 borderColor = nil
+                #if os(macOS)
+                _borderWidth = 0.0
+                #else
                 borderWidth = 0.0
+                #endif
                 let borderLayer = dashedBorderLayer ?? DashedBorderLayer()
                 borderLayer.zPosition = CGFloat(Float.greatestFiniteMagnitude)
                 borderLayer.configuration = configuration
@@ -164,7 +168,11 @@ extension BorderConfiguration: Codable {
                     borderColor = newColor?.withAlphaComponent(0.0) ?? .clear
                 }
                 borderColor = newColor
+                #if os(macOS)
+                _borderWidth = configuration.width
+                #else
                 borderWidth = configuration.width
+                #endif
             }
         }
 
