@@ -41,6 +41,8 @@ import SwiftUI
     public typealias NSUIButton = NSButton
     public typealias NSUICollectionViewLayoutInvalidationContext = NSCollectionViewLayoutInvalidationContext
     public typealias NSUIControl = NSControl
+    public typealias NSUIVisualEffectView = NSVisualEffectView
+
 
 #elseif canImport(UIKit)
     import UIKit
@@ -81,4 +83,5 @@ import SwiftUI
     #endif
     public typealias NSUICollectionViewLayoutInvalidationContext = UICollectionViewLayoutInvalidationContext
     public typealias NSUIControl = UIControl
+    public typealias NSUIVisualEffectView = UIVisualEffectView
 #endif

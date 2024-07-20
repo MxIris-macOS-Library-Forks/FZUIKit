@@ -12,6 +12,13 @@
     import FZSwiftUtils
 
     public extension NSCollectionView {
+        /// Creates a collection view with an enclosing scroll view.
+        static func scrolling() -> NSCollectionView {
+            let collectionView = NSCollectionView()
+            collectionView.addEnclosingScrollView()
+            return collectionView
+        }
+        
         /**
          The frame of the item at the specified index path.
          - Parameter indexPath: The index path of the item.
@@ -23,34 +30,13 @@
 
         /**
          The item item at the specified location.
+         
          - Parameter location: The location of the item.
-         - Returns: The item or `nil` if no item exists at the specified location.
+         - Returns: The item at the specified location or `nil` if no item is available.
          */
         func item(at location: CGPoint) -> NSCollectionViewItem? {
-            if let indexPath = indexPathForItem(at: location) {
-                return item(at: indexPath)
-            }
-            return nil
-        }
-
-        /**
-         The item index paths for the specified section.
-         - Parameter section: The section of the items.
-         - Returns: The item index paths.
-         */
-        func indexPaths(for section: Int) -> [IndexPath] {
-            var indexPaths = [IndexPath]()
-            if numberOfSections > section {
-                let numberOfItems = numberOfItems(inSection: section)
-                for item in 0 ..< numberOfItems {
-                    indexPaths.append(IndexPath(item: item, section: section))
-                }
-            }
-            return indexPaths
-        }
-        
-        internal var indexPaths: [IndexPath] {
-            (0..<numberOfSections).flatMap({indexPaths(for: $0)})
+            guard let indexPath = indexPathForItem(at: location) else { return nil }
+            return item(at: indexPath)
         }
         
         internal var itemFrames: [CGRect] {

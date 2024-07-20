@@ -10,6 +10,39 @@
     import FZSwiftUtils
 
     public extension NSTableView {
+        /// Creates a table view with an enclosing scroll view.
+        static func scrolling() -> NSTableView {
+            let tableView = NSTableView()
+            tableView.addEnclosingScrollView()
+            return tableView
+        }
+        
+        /**
+         Selects the row after the currently selected.
+         
+         If no row is currently selected, the first row is selected.
+         
+         - Parameter extend: A Boolean value that indicates whether the selection should be extended.
+         */
+        func selectNextRow(byExtendingSelection extend: Bool = false) {
+            let row = (selectedRowIndexes.last ?? -1) + 1
+            guard numberOfRows > 0, row < numberOfRows else { return }
+            selectRowIndexes(IndexSet(integer: row), byExtendingSelection: extend)
+        }
+        
+        /**
+         Selects the row before the currently selected.
+         
+         If no row is currently selected, the last row is selected.
+         
+         - Parameter extend: A Boolean value that indicates whether the selection should be extended.
+         */
+        func selectPreviousRow(byExtendingSelection extend: Bool = false) {
+            let row = (selectedRowIndexes.first ?? numberOfRows) - 1
+            guard numberOfRows > 0, row > 0, row < numberOfRows else { return }
+            selectRowIndexes(IndexSet(integer: row), byExtendingSelection: extend)
+        }
+        
         /**
          Marks the table view as needing redisplay, so it will reload the data for visible cells and draw the new values.
          
@@ -52,7 +85,8 @@
 
         /**
          Returns the cell views of a column currently visible.
-
+         
+         - Parameter column: The column fot the visible cell views.
          - Returns: The array of row views corresponding to the currently visible cell view.
          */
         func visibleCells(for column: NSTableColumn) -> [NSTableCellView] {
