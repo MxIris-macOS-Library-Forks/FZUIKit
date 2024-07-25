@@ -163,6 +163,7 @@
                 guard editingActionOnEscapeKeyDown != newValue else { return }
                 setAssociatedValue(newValue, key: "actionOnEscapeKeyDown")
                 observeTextCommands()
+                observeEditing()
             }
         }
         
@@ -334,7 +335,7 @@
         }
 
         func observeEditing() {
-            if editingHandlers.needsSwizzle || allowedCharacters.needsSwizzling || minimumNumberOfCharacters != nil || maximumNumberOfCharacters != nil || automaticallyResizesToFit || needsFontAdjustments || isVerticallyCentered {
+            if editingHandlers.needsSwizzle || allowedCharacters.needsSwizzling || minimumNumberOfCharacters != nil || maximumNumberOfCharacters != nil || automaticallyResizesToFit || needsFontAdjustments || isVerticallyCentered || editingActionOnEscapeKeyDown == .endEditingAndReset {
                 guard editingNotificationTokens.isEmpty else { return }
                 setupTextFieldObserver()
                 
@@ -387,7 +388,6 @@
                             methodSignature: (@convention(c) (AnyObject, Selector, NSTextView, Selector) -> (Bool)).self,
                             hookSignature: (@convention(block) (AnyObject, NSTextView, Selector) -> (Bool)).self
                         ) { store in { object, textView, selector in
-                            Swift.print("check", object as? NSTextField != nil)
                             if let textField = object as? NSTextField {
                                 switch selector {
                                 case #selector(NSControl.cancelOperation(_:)):
