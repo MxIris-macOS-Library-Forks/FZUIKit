@@ -10,8 +10,14 @@ import AppKit
 import SwiftUI
 import FZSwiftUtils
 
-class NSHostingContentView<Content, Background>: NSView, NSContentView where Content: View, Background: View {
+class NSHostingContentView<Content, Background>: NSView, NSContentView, HostingContentView where Content: View, Background: View {
     
+    var hostingController: SelfSizingHostingController<ContentView>!
+    var hostingControllerConstraints: [NSLayoutConstraint] = []
+    var boundsWidth: CGFloat = 0.0
+    lazy var heightConstraint = heightAnchor.constraint(equalToConstant: 50)
+    var cachedHeight: CGFloat = 0.0
+
     /// The current configuration of the view.
     public var configuration: NSContentConfiguration {
         get { appliedConfiguration }
@@ -31,10 +37,10 @@ class NSHostingContentView<Content, Background>: NSView, NSContentView where Con
     public init(configuration: NSHostingConfiguration<Content, Background>) {
         appliedConfiguration = configuration
         super.init(frame: .zero)
-        hostingView = NSHostingView(rootView: ContentView(configuration: appliedConfiguration))
-        hostingView.backgroundColor = .clear
-        hostingView.translatesAutoresizingMaskIntoConstraints = false
-        hostingViewConstraints = addSubview(withConstraint: hostingView)
+        translatesAutoresizingMaskIntoConstraints = false
+        hostingController = SelfSizingHostingController(rootView: ContentView(configuration: appliedConfiguration))
+        hostingController.view.backgroundColor = .clear
+        updateAutoHeight()
         updateConfiguration()
     }
     
@@ -42,55 +48,64 @@ class NSHostingContentView<Content, Background>: NSView, NSContentView where Con
         didSet { updateConfiguration() }
     }
     
+   @objc var autoHeight = false {
+        didSet {
+            guard oldValue != autoHeight else { return }
+            updateAutoHeight()
+        }
+    }
+    
+    /*
+    var didSetup = false
+    override func viewWillMove(toSuperview newSuperview: NSView?) {
+        guard newSuperview != nil, !didSetup else { return }
+        didSetup = true
+        if newSuperview is NSTableCellView {
+            autoHeight = true
+        }
+    }
+     */
+    
+    func updateAutoHeight() {
+        if !autoHeight {
+            heightConstraint.activate(false)
+            hostingControllerConstraints = addSubview(withConstraint: hostingController.view)
+            hostingControllerConstraints.constant(appliedConfiguration.margins)
+        } else {
+            hostingController.view.removeFromSuperview()
+            hostingControllerConstraints = []
+            hostingController = .init(rootView: .init(configuration: appliedConfiguration))
+            addSubview(hostingController.view)
+            updateHeight()
+            heightConstraint.activate(true)
+        }
+    }
+    
     func updateConfiguration() {
-        hostingView.rootView = ContentView(configuration: appliedConfiguration)
-        if #available(macOS 13.0, *) {
-            hostingView.sizingOptions = appliedConfiguration.sizingOptions
-        }
-        hostingViewConstraints.constant(appliedConfiguration.margins)
-        updateRowView()
+        hostingController.rootView = ContentView(configuration: appliedConfiguration)
+       // hostingController.sizingOptions = appliedConfiguration.sizingOptions
+        hostingControllerConstraints.constant(appliedConfiguration.margins)
+        hostingController.view.invalidateIntrinsicContentSize()
+        updateHeight()
     }
-    
-    var hostingView: NSHostingView<ContentView>!
-    var hostingViewConstraints: [NSLayoutConstraint] = []
-    
-    var boundsWidth: CGFloat = 0.0
-    
-    func updateRowView() {
-        if let rowView = firstSuperview(for: NSTableRowView.self) {
-            let fittingSize = self.fittingSize
-            Swift.print("updateRowView", fittingSize, rowView.frame.size, rowView.bounds.size)
-            if rowView.frame.height < fittingSize.height {
-                rowView.frame.size.height = fittingSize.height
-            } else if rowView.frame.height > fittingSize.height {
-                rowView.frame.size.height = fittingSize.height
-            }
-        }
-    }
-    
+
     override func layout() {
         super.layout()
         guard bounds.width != boundsWidth else { return }
         boundsWidth = bounds.width
-        updateRowView()
+        updateHeight()
     }
     
-    /*
-     override var fittingSize: NSSize {
-     hostingController.view.fittingSize
-     }
-     
-     override var intrinsicContentSize: CGSize {
-     var intrinsicContentSize = super.intrinsicContentSize
-     if let width = appliedConfiguration.minWidth {
-     intrinsicContentSize.width = max(intrinsicContentSize.width, width)
-     }
-     if let height = appliedConfiguration.minHeight {
-     intrinsicContentSize.height = max(intrinsicContentSize.height, height)
-     }
-     return intrinsicContentSize
-     }
-     */
+    func updateHeight() {
+        invalidateIntrinsicContentSize()
+        if let rowView = tableRowView, rowView.frame.height > cachedHeight {
+            rowView.frame.size.height = cachedHeight
+        }
+    }
+    
+    var tableRowView: NSTableRowView? {
+        firstSuperview(for: NSTableRowView.self)
+    }
     
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
@@ -111,6 +126,23 @@ extension NSHostingContentView {
                 configuration.background
                 configuration.content
             }
+        }
+    }
+}
+
+protocol HostingContentView {
+    func updateHeight()
+}
+
+class SelfSizingHostingController<Content: View>: NSHostingController<Content> {
+    var viewHeight: CGFloat = 0.0
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        view.invalidateIntrinsicContentSize()
+        let height = sizeThatFits(in: CGSize(view.bounds.width, .greatestFiniteMagnitude)).height
+        if viewHeight != height {
+            viewHeight = height
+            (view.superview as? HostingContentView)?.updateHeight()
         }
     }
 }

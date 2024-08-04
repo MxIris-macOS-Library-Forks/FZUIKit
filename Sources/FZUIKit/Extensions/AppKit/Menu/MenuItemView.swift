@@ -92,7 +92,7 @@ import AppKit
 /// not exactly the same. If you would like to change it, you can assign a different
 /// animation (or group of animations) to the ``highlightAnimation`` property.
 /// You can also turn off the animation by setting this property to `nil`.
-open class MenuItemView: NSView {
+open class MenuItemView: NSTableCellView {
     // MARK: - Properties
     
     /// Get or set whether this menu item view should automatically
@@ -101,11 +101,9 @@ open class MenuItemView: NSView {
     /// If this property is set to `true` (default), the view will automatically
     /// change the appearance of supported views (`NSTextField` and `NSImageView`)
     /// to match the highlight state of the enclosing menu item.
-    ///
-    /// - warning: If you wish to opt out of this behavior, make sure to turn off
-    /// this property **before** the menu item is displayed. If the item is highlighted
-    /// even once before the property is turned off, your custom colors will be overridden.
-    public var autoHighlightSubviews = true
+    public var autoHighlightSubviews = true {
+        didSet { updateBackgroundStyle() }
+    }
     
     /// Get or set the animation to perform when the menu item is clicked.
     ///
@@ -142,7 +140,7 @@ open class MenuItemView: NSView {
     // MARK: - Constants
     
     /// Get the margins that are used to layout the ``highlightView``.
-    open var highlightMargins = NSEdgeInsets(top: 0, left: 6, bottom: 0, right: 6) {
+    open var highlightMargins = NSEdgeInsets(top: 0, left: 5, bottom: 0, right: 5) {
         didSet {
             guard oldValue != highlightMargins else { return }
             highlightViewConstraits.constant(highlightMargins)
@@ -154,7 +152,7 @@ open class MenuItemView: NSView {
     ///
     /// - note: These values are reflected on the `layoutMarginsGuide` and
     /// can be used with AutoLayout through that.
-    open var contentMargins = NSEdgeInsets(top: 12, left: 0, bottom: 12, right: 0) {
+    open var contentMargins = NSEdgeInsets(top: 0, left: 5, bottom: 0, right: 5) {
         didSet {
             guard oldValue != contentMargins else { return }
             innerContentConstraits.constant(highlightMargins)
@@ -181,6 +179,7 @@ open class MenuItemView: NSView {
         view.isEmphasized = true
         return view
     }()
+    
     
     private lazy var innerContentGuide = NSLayoutGuide()
     
@@ -264,6 +263,19 @@ open class MenuItemView: NSView {
         } else {
             highlightView.isHidden = true
         }
+        updateBackgroundStyle()
+    }
+    
+    func updateBackgroundStyle() {
+        if autoHighlightSubviews {
+            if isEnabled {
+                backgroundStyle = isHighlighted ? .emphasized : .normal
+            } else {
+                backgroundStyle = .lowered
+            }
+        } else {
+            backgroundStyle = .normal
+        }
     }
         
     public override func draw(_ dirtyRect: NSRect) {
@@ -272,11 +284,6 @@ open class MenuItemView: NSView {
         if let menu = enclosingMenuItem?.menu, menu.delegateProxy == nil {
             menu.delegateProxy = NSMenu.Delegate(menu)
         }
-           
-        guard autoHighlightSubviews else { return }
-        let isHighlighted = enclosingMenuItem?.isHighlighted ?? false
-        let isEnabled = self.isEnabled
-        subviews.forEach { highlightIfNeeded($0, isHighlighted: isHighlighted, isEnabled: isEnabled) }
     }
     
     /// Add a subview to the menu item and automatically add constraints to
@@ -326,34 +333,7 @@ open class MenuItemView: NSView {
             in: menu
         )
     }
-    
-    // MARK: - Highlighting
-    
-    /// Apply changes to the appearance of the specified view depending
-    /// on the specified parameters.
-    ///
-    /// - note: This function is invoked automatically as part of the drawing cycle if ``autoHighlightSubviews`` is `true`.
-    /// You shouldn't need to invoke this function manually.
-    ///
-    /// You can override this function in your subclass to add support for your subviews. If you're overriding,
-    /// make sure to invoke this function on all the subviews of `view`.
-    open func highlightIfNeeded(_ view: NSView, isHighlighted: Bool, isEnabled: Bool) {
-        if
-            let textField = view as? NSTextField
-        {
-            textField.textColor = colorConsidering(isHighlighted: isHighlighted, isEnabled: isEnabled)
-        } else if
-            let imageView = view as? NSImageView,
-            imageView.image?.isTemplate == true,
-            #available(macOS 10.14, *)
-        {
-            imageView.contentTintColor = colorConsidering(isHighlighted: isHighlighted, isEnabled: isEnabled)
-        }
         
-        view.subviews
-            .forEach { highlightIfNeeded($0, isHighlighted: isHighlighted, isEnabled: isEnabled) }
-    }
-    
     private var highlightViewConstraits: [NSLayoutConstraint] = []
     private var innerContentConstraits: [NSLayoutConstraint] = []
 }
@@ -391,25 +371,6 @@ private extension MenuItemView {
         ]
         innerContentConstraits.constant(contentMargins)
         innerContentConstraits.activate()
-    }
-}
-
-// MARK: - Highlight
-public extension MenuItemView {
-    /// Get the color to use depending on the specified conditions.
-    ///
-    /// - parameters:
-    ///     - isHighlighted: Whether the view is highlighted.
-    ///     - isEnabled: Whether the view is enabled.
-    /// - returns: The resulting color.
-    func colorConsidering(isHighlighted: Bool, isEnabled: Bool) -> NSColor {
-        if isHighlighted {
-            return .selectedMenuItemTextColor
-        } else if !isEnabled {
-            return .disabledControlTextColor
-        } else {
-            return .controlTextColor
-        }
     }
 }
 
