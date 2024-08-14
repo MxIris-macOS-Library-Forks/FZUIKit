@@ -16,7 +16,7 @@ class NSHostingContentView<Content, Background>: NSView, NSContentView, HostingC
     var hostingControllerConstraints: [NSLayoutConstraint] = []
     var boundsWidth: CGFloat = 0.0
     lazy var heightConstraint = heightAnchor.constraint(equalToConstant: 50)
-    var cachedHeight: CGFloat = 0.0
+    var cachedHeights:[CGFloat:CGFloat] = [:]
 
     /// The current configuration of the view.
     public var configuration: NSContentConfiguration {
@@ -82,23 +82,33 @@ class NSHostingContentView<Content, Background>: NSView, NSContentView, HostingC
     }
     
     func updateConfiguration() {
+        cachedHeights.removeAll()
+        hostingController.fittingHeight = 0.0
         hostingController.rootView = ContentView(configuration: appliedConfiguration)
-       // hostingController.sizingOptions = appliedConfiguration.sizingOptions
         hostingControllerConstraints.constant(appliedConfiguration.margins)
         hostingController.view.invalidateIntrinsicContentSize()
+        // hostingController.sizingOptions = appliedConfiguration.sizingOptions
         updateHeight()
     }
 
     override func layout() {
         super.layout()
         guard bounds.width != boundsWidth else { return }
+        if bounds.width > boundsWidth {
+            updateHeight()
+        }
         boundsWidth = bounds.width
-        updateHeight()
     }
     
-    func updateHeight() {
+    func updateHeight(reset: Bool = false) {
         invalidateIntrinsicContentSize()
-        if let rowView = tableRowView, rowView.frame.height > cachedHeight {
+        guard let rowView = tableRowView else { return }
+        if reset {
+            cachedHeights[bounds.width] = hostingController.fittingHeight
+        } else if cachedHeights[bounds.width] == nil {
+            cachedHeights[bounds.width] = hostingController.sizeThatFits(in: CGSize(bounds.width, .greatestFiniteMagnitude)).height
+        }
+        if let cachedHeight = cachedHeights[bounds.width], rowView.frame.height > cachedHeight {
             rowView.frame.size.height = cachedHeight
         }
     }
@@ -131,18 +141,24 @@ extension NSHostingContentView {
 }
 
 protocol HostingContentView {
-    func updateHeight()
+    func updateHeight(reset: Bool)
 }
 
 class SelfSizingHostingController<Content: View>: NSHostingController<Content> {
-    var viewHeight: CGFloat = 0.0
+    var fittingHeight: CGFloat = 0.0
+    var boundsWidth: CGFloat = 0.0
+    
     override func viewDidLayout() {
         super.viewDidLayout()
-        view.invalidateIntrinsicContentSize()
-        let height = sizeThatFits(in: CGSize(view.bounds.width, .greatestFiniteMagnitude)).height
-        if viewHeight != height {
-            viewHeight = height
-            (view.superview as? HostingContentView)?.updateHeight()
+        if view.bounds.width != boundsWidth {
+            boundsWidth = view.bounds.width
+        } else {
+            view.invalidateIntrinsicContentSize()
+            let height = sizeThatFits(in: CGSize(view.bounds.width, .greatestFiniteMagnitude)).height
+            if height > fittingHeight {
+                fittingHeight = height
+                (view.superview as? HostingContentView)?.updateHeight(reset: true)
+            }
         }
     }
 }

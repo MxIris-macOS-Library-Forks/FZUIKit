@@ -13,9 +13,9 @@
     #endif
 
     public extension NSDiffableDataSourceSnapshot {
-        /// A Boolean value indicating whether the snapshot is empty.
+        /// A Boolean value indicating whether the snapshot has no items and sections.
         var isEmpty: Bool {
-            numberOfItems > 0 ? numberOfSections == 0 : true
+            numberOfItems == 0 && numberOfSections == 0
         }
         
         /**
