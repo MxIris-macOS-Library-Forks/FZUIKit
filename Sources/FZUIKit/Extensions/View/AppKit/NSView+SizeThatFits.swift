@@ -10,6 +10,66 @@
 import AppKit
 import FZSwiftUtils
 
+public extension NSViewProtocol {
+    func sizeThatFits(width: CGFloat) -> CGSize {
+        sizeThatFits(in: CGSize(width, NSView.noIntrinsicMetric))
+    }
+    
+    func sizeThatFits(height: CGFloat) -> CGSize {
+        sizeThatFits(in: CGSize(NSView.noIntrinsicMetric, height))
+    }
+    
+    func sizeThatFits(in size: CGSize) -> CGSize {
+        guard size != .noIntrinsicMetric else { return fittingSize }
+        let translatesAutoresizing = translatesAutoresizingMaskIntoConstraints
+        translatesAutoresizingMaskIntoConstraints = false
+        var widthConstraint: NSLayoutConstraint?
+        var heightConstraint: NSLayoutConstraint?
+        if size.width != NSView.noIntrinsicMetric && size.width > 0 {
+            widthConstraint = widthAnchor.constraint(lessThanOrEqualToConstant: size.width).priority(.fittingSizeCompression)
+        }
+        if size.height != NSView.noIntrinsicMetric && size.height > 0 {
+            heightConstraint = heightAnchor.constraint(lessThanOrEqualToConstant: size.height).priority(.fittingSizeCompression)
+        }
+        widthConstraint?.activate()
+        heightConstraint?.activate()
+        let fittingSize = fittingSize
+        widthConstraint?.activate(false)
+        heightConstraint?.activate(false)
+        translatesAutoresizingMaskIntoConstraints = translatesAutoresizing
+        return fittingSize
+    }
+}
+
+public extension NSTextField {
+    func sizeThatFits(width: CGFloat) -> CGSize {
+        guard let cell = cell else { return bounds.size }
+        var rect = cell.drawingRect(forBounds: bounds)
+        rect.size.width = width
+        return cell.cellSize(forBounds: rect)
+    }
+    
+    func sizeThatFits(height: CGFloat) -> CGSize {
+        guard let cell = cell else { return bounds.size }
+        var rect = cell.drawingRect(forBounds: bounds)
+        rect.size.height = height
+        return cell.cellSize(forBounds: rect)
+    }
+    
+    func sizeThatFits(in size: CGSize) -> CGSize {
+        guard let cell = cell else { return bounds.size }
+        var rect = cell.drawingRect(forBounds: bounds)
+        rect.size = size
+        return cell.cellSize(forBounds: rect)
+    }
+}
+
+extension CGSize {
+    static var noIntrinsicMetric: CGSize {
+        CGSize(-1, -1)
+    }
+}
+
 /*
 
 public extension NSViewProtocol {
