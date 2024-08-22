@@ -14,10 +14,10 @@
     @available(macOS 13.0, *)
     extension NSButton.AdvanceButtonView {
         struct ContentView: View {
-            let configuration: NSButton.AdvanceButtonConfiguration
+            let configuration: NSButton.AdvanceConfiguration
             let showBorder: Bool
 
-            public init(configuration: NSButton.AdvanceButtonConfiguration, showBorder: Bool) {
+            public init(configuration: NSButton.AdvanceConfiguration, showBorder: Bool) {
                 self.configuration = configuration
                 self.showBorder = showBorder
             }
@@ -41,21 +41,7 @@
                 @unknown default: return .system(.subheadline)
                 }
             }
-
-            @ViewBuilder
-            var textItems: some View {
-                VStack(alignment: configuration._resolvedTitleAlignment.alignment, spacing: configuration.titlePadding) {
-                    titleItem
-                        .font(titleFont)
-                        .multilineTextAlignment(configuration._resolvedTextAlignment)
-                        .foregroundColor(configuration.resolvedForegroundColor()?.swiftUI)
-                    subtitleItem
-                        .font(subtitleFont)
-                        .multilineTextAlignment(configuration._resolvedTextAlignment)
-                        .foregroundColor(configuration.resolvedForegroundColor()?.swiftUI)
-                }
-            }
-
+            
             @ViewBuilder
             var titleItem: some View {
                 if let title = configuration.title {
@@ -75,20 +61,35 @@
             }
 
             @ViewBuilder
+            var textItems: some View {
+                VStack(alignment: configuration.resolvedTitleAlignment().alignment, spacing: configuration.titlePadding) {
+                    if configuration.hasTitle {
+                        titleItem
+                            .font(titleFont)
+                    }
+                    if configuration.hasSubtitle {
+                        subtitleItem
+                            .font(subtitleFont)
+                    }
+                }                     .multilineTextAlignment(configuration.resolvedTitleAlignment().textAlignment)
+                    .foregroundColor(configuration.resolvedForegroundColor()?.swiftUI)
+            }
+
+            @ViewBuilder
             var imageItem: some View {
                 if let image = configuration.image {
                     Image(image)
                         .foregroundColor(configuration.resolvedForegroundColor()?.swiftUI)
-                        .symbolConfiguration(configuration.imageSymbolConfiguration)
+                        .symbolConfiguration(configuration.resolvedSymbolConfiguration())
                 }
             }
 
             @ViewBuilder
             var stackItem: some View {
-                switch configuration.imagePlacement {
+                switch configuration.imagePosition {
                 case .leading, .trailing:
                     HStack(alignment: .center, spacing: configuration.imagePadding) {
-                        if configuration.imagePlacement == .leading {
+                        if configuration.imagePosition == .leading {
                             imageItem
                             textItems
                         } else {
@@ -98,7 +99,7 @@
                     }
                 default:
                     VStack(alignment: .center, spacing: configuration.imagePadding) {
-                        if configuration.imagePlacement == .top {
+                        if configuration.imagePosition == .top {
                             imageItem
                             textItems
                         } else {
@@ -108,14 +109,19 @@
                     }
                 }
             }
+            
+            @ViewBuilder
+            var overlayItem: some View {
+                configuration.shape.swiftUI
+            }
 
             var body: some View {
                 stackItem
                     .padding(configuration.contentInsets.edgeInsets)
-                    .scaleEffect(configuration.scaleTransform)
                     .background(configuration.resolvedBackgroundColor()?.swiftUI)
-                    .clipShape(configuration.cornerStyle.shape)
-                    .overlay(configuration.cornerStyle.shape.stroke(lineWidth: showBorder ? configuration.borderWidth : 0.0).foregroundColor(configuration.resolvedForegroundColor()?.swiftUI))
+                    .clipShape(configuration.shape.swiftUI)
+                    .overlay(configuration.shape.swiftUI.stroke(lineWidth: showBorder ? configuration.borderWidth : 0.0).foregroundColor(configuration.resolvedForegroundColor()?.swiftUI))
+                    .scaleEffect(configuration.scaleTransform)
                     .opacity(configuration.opacity)
             }
         }
@@ -126,12 +132,22 @@
         public class AdvanceButtonView: NSView, NSContentView {
             
             lazy var trackingArea = TrackingArea(for: self, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect])
-            
-            var showsBorderOnlyWhileMouseInside: Bool {
-                appliedConfiguration.borderWidth > 0.0 && appliedConfiguration.showsBorderOnlyWhileMouseInside
+            var hostingView: NSHostingView<ContentView>!
+            var mouseIsInside = false
+            var isPressed: Bool = false {
+                didSet {
+                    if let button = button {
+                        if button.automaticallyUpdatesConfiguration {
+                            button.updateConfiguration()
+                        }
+                        button.configurationUpdateHandler?(button, button.configurationState)
+                    }
+                }
             }
             
-            var showBorder: Bool = false
+            var showBorder: Bool {
+                appliedConfiguration.showsBorderOnlyWhileMouseInside ? mouseIsInside : true
+            }
             
             public override func updateTrackingAreas() {
                 super.updateTrackingAreas()
@@ -141,34 +157,30 @@
             public var configuration: NSContentConfiguration {
                 get { appliedConfiguration }
                 set { 
-                    guard let configuration = newValue as? NSButton.AdvanceButtonConfiguration else { return }
+                    guard let configuration = newValue as? NSButton.AdvanceConfiguration else { return }
                     appliedConfiguration = configuration
                 }
             }
             
-            /// The handler that is called when the button is pressed.
-            public var action: (()->())? = nil
-            
             /// The current configuration of the view.
-            var appliedConfiguration: NSButton.AdvanceButtonConfiguration {
+            var appliedConfiguration: NSButton.AdvanceConfiguration {
                 didSet {
-                    if oldValue != appliedConfiguration {
-                        updateConfiguration()
-                    }
+                    guard oldValue != appliedConfiguration else { return }
+                    updateConfiguration()
                 }
             }
             
             public override func mouseEntered(with event: NSEvent) {
-                showBorder = true
-                if showsBorderOnlyWhileMouseInside {
+                mouseIsInside = true
+                if appliedConfiguration.showsBorderOnlyWhileMouseInside {
                     updateConfiguration()
                 }
                 super.mouseEntered(with: event)
             }
             
             public override func mouseExited(with event: NSEvent) {
-                showBorder = false
-                if showsBorderOnlyWhileMouseInside {
+                mouseIsInside = false
+                if appliedConfiguration.showsBorderOnlyWhileMouseInside {
                     updateConfiguration()
                 }
                 super.mouseExited(with: event)
@@ -178,72 +190,42 @@
                 superview as? NSButton
             }
 
-            var isPressed: Bool = false
             public override func mouseDown(with _: NSEvent) {
                 isPressed = true
-                if button?.automaticallyUpdatesConfiguration == true {
-                    button?.updateConfiguration()
-                }
             }
 
             public override func mouseUp(with event: NSEvent) {
                 isPressed = false
-                if button?.automaticallyUpdatesConfiguration == true {
-                    button?.updateConfiguration()
-                }
                 
                 if frame.contains(event.location(in: self)) {
-                    button?.sendAction()
-                    action?()
+                    button?.performAction()
+                    button?.sound?.play()
                 }
             }
 
             /// Creates a item content view with the specified content configuration.
-            public init(configuration: NSButton.AdvanceButtonConfiguration) {
+            public init(configuration: NSButton.AdvanceConfiguration) {
                 self.appliedConfiguration = configuration
                 super.init(frame: .zero)
-                hostingViewConstraints = addSubview(withConstraint: hostingController.view)
+                
+                hostingView = NSHostingView(rootView: ContentView(configuration: self.appliedConfiguration, showBorder: showBorder))
+                hostingView.backgroundColor = .clear
+                hostingView.translatesAutoresizingMaskIntoConstraints = false
+                hostingView.clipsToBounds = false
+                addSubview(withConstraint: hostingView)
                 updateTrackingAreas()
-                updateConfiguration()
+                frame.size = fittingSize
             }
-
-            var hostingViewConstraints: [NSLayoutConstraint] = []
 
             func updateConfiguration() {
-                hostingController.rootView = ContentView(configuration: appliedConfiguration, showBorder: showBorder)
+                hostingView.rootView = ContentView(configuration: appliedConfiguration, showBorder: showBorder)
                 frame.size = fittingSize
-               // sizeToFit()
             }
-
-            var margins: NSDirectionalEdgeInsets {
-                get {
-                    var edgeInsets = NSDirectionalEdgeInsets(top: hostingViewConstraints[0].constant, leading: hostingViewConstraints[1].constant, bottom: 0, trailing: 0)
-                    edgeInsets.width = -hostingViewConstraints[2].constant
-                    edgeInsets.height = -hostingViewConstraints[3].constant
-                    return edgeInsets
-                }
-                set {
-                    hostingViewConstraints[0].constant = newValue.bottom
-                    hostingViewConstraints[1].constant = newValue.leading
-                    hostingViewConstraints[2].constant = -newValue.width
-                    hostingViewConstraints[3].constant = -newValue.height
-                }
-            }
-
-            lazy var hostingController: NSHostingController<ContentView> = {
-                let contentView = ContentView(configuration: self.appliedConfiguration, showBorder: showBorder)
-                let hostingController = NSHostingController(rootView: contentView)
-                hostingController.view.backgroundColor = .clear
-                hostingController.view.translatesAutoresizingMaskIntoConstraints = false
-                hostingController.view.clipsToBounds = false
-                return hostingController
-            }()
-
+            
             @available(*, unavailable)
             required init?(coder _: NSCoder) {
                 fatalError("init(coder:) has not been implemented")
             }
         }
     }
-
 #endif

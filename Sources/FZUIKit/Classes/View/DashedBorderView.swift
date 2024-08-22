@@ -26,25 +26,20 @@ class DashedBorderView: NSUIView {
     }
     
     func update() {
-        var border = configuration
-        border.insets.bottomTop += border.width / 2.0
-        border.insets.leadingTrailing += border.width / 2.0
-        
-        if let superview = superview {
-            hostingController.rootView = ContentView(border: border, cornerRadius: superview.cornerRadius, cornerCurve: superview.cornerCurve, roundedCorners: superview.roundedCorners)
-        } else {
-            hostingController.rootView = ContentView(border: border, cornerRadius: cornerRadius, cornerCurve: cornerCurve, roundedCorners: roundedCorners)
-        }
+        var configuration = configuration
+        configuration.insets.bottomTop += configuration.width / 2.0
+        configuration.insets.leadingTrailing += configuration.width / 2.0
+        let view = superview ?? self
+        hostingController.rootView = ContentView(border: configuration, cornerRadius: view.cornerRadius, cornerCurve: view.cornerCurve, roundedCorners: view.roundedCorners)
     }
     
     init(configuration: BorderConfiguration = .none()) {
         self.configuration = configuration
         super.init(frame: .zero)
-        
-        hostingController = NSUIHostingController(rootView: ContentView(border: border, cornerRadius: cornerRadius, cornerCurve: cornerCurve, roundedCorners: roundedCorners))
+        hostingController = NSUIHostingController(rootView: ContentView(border: configuration, cornerRadius: cornerRadius, cornerCurve: cornerCurve, roundedCorners: roundedCorners))
         addSubview(withConstraint: hostingController.view)
+        update()
         optionalLayer?.zPosition = .greatestFiniteMagnitude
-        
         observation = KeyValueObserver(self)
         #if os(macOS)
         observation.add(\.superview?.layer?.cornerRadius) { [weak self] old, new in
@@ -79,12 +74,11 @@ class DashedBorderView: NSUIView {
         let cornerRadius: CGFloat
         let cornerCurve: CALayerCornerCurve
         let roundedCorners: CACornerMask
-        let animates: Bool = false
         @State var phase: CGFloat = 0
         
         @ViewBuilder
         var borderItem: some View {
-            if roundedCorners != .all, #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) {
+            if roundedCorners != [] || roundedCorners != .all, #available(macOS 13.0, iOS 16.0, tvOS 16.0, *) {
                 UnevenRoundedRectangle(cornerRadius: cornerRadius, roundedCorners: roundedCorners, style: cornerCurve == .continuous ? .continuous : .circular)
                     .stroke(border, phase: phase)
             } else {
@@ -95,10 +89,10 @@ class DashedBorderView: NSUIView {
         
         var body: some View {
             if let color = border.resolvedColor(), color.alphaComponent != 0.0 {
-                if animates {
+                if border.dash.animates && border.needsDashedBorderView {
                     borderItem
                         .animation(
-                            Animation.linear(duration: 1)
+                            Animation.linear(duration: border.dash._animationSpeed)
                                 .repeatForever(autoreverses: false),
                             value: phase)
                         .onAppear {
@@ -107,7 +101,7 @@ class DashedBorderView: NSUIView {
                 } else {
                     borderItem
                         .onAppear {
-                            phase = border.dashPhase
+                            phase = border.dash.phase
                         }
                 }
             }
@@ -116,19 +110,13 @@ class DashedBorderView: NSUIView {
 }
 
 extension Shape {
-    /**
-     Traces the outline of this shape with the specified border configuration.
-     
-     - Parameter border: The border configuration.
-     
-     */
     @ViewBuilder
-    public func stroke(_ border: BorderConfiguration, phase: CGFloat) -> some View {
-        if border.dashPattern.isEmpty {
+    fileprivate func stroke(_ border: BorderConfiguration, phase: CGFloat) -> some View {
+        if border.dash.pattern.count <= 1 {
             stroke(Color(border.resolvedColor() ?? .clear), lineWidth: border.width)
                 .padding(border.insets.edgeInsets)
         } else {
-            stroke(Color(border.resolvedColor() ?? .clear), style: StrokeStyle(lineWidth: border.width, lineCap: border.dashLineCap, dash: border.dashPattern, dashPhase: phase))
+            stroke(Color(border.resolvedColor() ?? .clear), style: StrokeStyle(lineWidth: border.width, lineCap: border.dash.lineCap, dash: border.dash.pattern, dashPhase: phase))
                 .padding(border.insets.edgeInsets)
         }
     }

@@ -58,16 +58,16 @@ import FZSwiftUtils
             get { borderLayer?.configuration ?? BorderConfiguration(color: borderColor?.nsUIColor, width: borderWidth) }
             set {
                 guard newValue != border else { return }
-                if newValue.isInvisible || !newValue.needsDashedBordlerLayer {
+                if newValue.isInvisible || !newValue.needsDashedBorderView {
                     borderLayer?.removeFromSuperlayer()
                 }
                 
                 if let layer = self as? CAShapeLayer {
                     layer.strokeColor = newValue.resolvedColor()?.cgColor
-                    layer.lineDashPattern = newValue.dashPattern  as [NSNumber]
+                    layer.lineDashPattern = newValue.dash.pattern  as [NSNumber]
                     layer.lineWidth = newValue.width
                 } else {
-                    if newValue.needsDashedBordlerLayer {
+                    if newValue.needsDashedBorderView {
                         borderColor = nil
                         borderWidth = 0.0
                         if borderLayer == nil {
