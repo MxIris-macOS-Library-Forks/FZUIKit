@@ -17,16 +17,9 @@ import SwiftUI
 /**
  A configuration that specifies the appearance of a shadow.
  
- The shadows of `NSView`, `UIView` and `CALayer` can be configurated by using the properties `innerShadow` and `outerShadow`.
+ The shadows of `NSView/UIView` and `CALayer` can be configurated by using their `innerShadow` and `outerShadow` properties.
  */
 public struct ShadowConfiguration: Hashable {
-    /// The type of a shadow.
-    enum ShadowType {
-        /// Inner shadow.
-        case inner
-        /// Outer shadow.
-        case outer
-    }
     
     /// The color of the shadow.
     public var color: NSUIColor? = .black
@@ -56,19 +49,20 @@ public struct ShadowConfiguration: Hashable {
     public var offset: CGPoint = .init(x: -1.0, y: 1.5)
     #endif
     
-    /// A Boolean value that indicates whether the shadow is invisible (when the color is `nil`, `clear` or the opacity `0`).
     var isInvisible: Bool {
-        (resolvedColor() == nil || resolvedColor()?.alphaComponent == 0.0 || opacity == 0.0)
+        opacity == 0.0 || resolvedColor() == nil || resolvedColor()?.alphaComponent == 0.0
     }
         
     #if os(macOS)
     /// Creates a shadow configuration.
     public init(color: NSUIColor? = .black,
+                colorTransformer: ColorTransformer? = nil,
                 opacity: CGFloat = 0.4,
                 radius: CGFloat = 2.0,
                 offset: CGPoint = CGPoint(x: 1.0, y: -1.5))
     {
         self.color = color
+        self.colorTransformer = colorTransformer
         self.opacity = opacity
         self.radius = radius
         self.offset = offset
@@ -76,11 +70,13 @@ public struct ShadowConfiguration: Hashable {
     #else
     /// Creates a shadow configuration.
     public init(color: NSUIColor? = .black,
+                colorTransformer: ColorTransformer? = nil,
                 opacity: CGFloat = 0.4,
                 radius: CGFloat = 2.0,
                 offset: CGPoint = CGPoint(x: -1.0, y: 1.5))
     {
         self.color = color
+        self.colorTransformer = colorTransformer
         self.opacity = opacity
         self.radius = radius
         self.offset = offset
@@ -126,7 +122,6 @@ public struct ShadowConfiguration: Hashable {
 extension ShadowConfiguration: Codable {
     public enum CodingKeys: String, CodingKey {
         case color
-        case resolvedColor
         case opacity
         case radius
         case offset
@@ -149,61 +144,10 @@ extension ShadowConfiguration: Codable {
     }
 }
 
-extension NSUIView {
-    /**
-     Configurates the shadow of the view.
-     
-     - Parameters:
-     - configuration:The configuration of the shadow.
-     - type: The type of shadow (either `inner` or `outer`).
-     */
-    func configurate(using configuration: ShadowConfiguration, type: ShadowConfiguration.ShadowType) {
-        if type == .outer {
-            shadowColor = configuration.resolvedColor()
-            shadowOffset = configuration.offset
-            shadowOpacity = configuration.opacity
-            shadowRadius = configuration.radius
-            if !configuration.isInvisible {
-                clipsToBounds = false
-            }
-        } else {
-            optionalLayer?.configurate(using: configuration, type: type)
-        }
-    }
-    
-    internal var innerShadowLayer: InnerShadowLayer? {
-        optionalLayer?.firstSublayer(type: InnerShadowLayer.self)
-    }
-}
 
-extension CALayer {
-    /**
-     Configurates the shadow of the layer.
-     
-     - Parameters:
-     - configuration:The configuration of the shadow.
-     - type: The type of shadow (either `inner` or `outer`).
-     */
-    func configurate(using configuration: ShadowConfiguration, type: ShadowConfiguration.ShadowType) {
-        if type == .outer {
-            shadow = configuration
-        } else {
-            if configuration.isInvisible {
-                innerShadowLayer?.removeFromSuperlayer()
-            } else {
-                if innerShadowLayer == nil {
-                    let innerShadowLayer = InnerShadowLayer()
-                    addSublayer(withConstraint: innerShadowLayer)
-                    innerShadowLayer.sendToBack()
-                    innerShadowLayer.zPosition = -CGFloat(Float.greatestFiniteMagnitude) + 1
-                }
-                innerShadowLayer?.configuration = configuration
-            }
-        }
-    }
-    
-    internal var innerShadowLayer: InnerShadowLayer? {
-        firstSublayer(type: InnerShadowLayer.self)
+extension NSUIView {
+    var innerShadowLayer: InnerShadowLayer? {
+        optionalLayer?.firstSublayer(type: InnerShadowLayer.self)
     }
 }
 
@@ -300,22 +244,14 @@ public extension NSShadow {
 
 /// The Objective-C class for ``ShadowConfiguration``.
 public class __ShadowConfiguration: NSObject, NSCopying {
-    var color: NSUIColor?
-    var colorTransformer: ColorTransformer?
-    var opacity: CGFloat = 0.3
-    var radius: CGFloat = 2.0
-    var offset: CGPoint = .init(x: 1.0, y: -1.5)
+    let configuration: ShadowConfiguration
     
-    public init(color: NSUIColor?, opacity: CGFloat, radius: CGFloat, offset: CGPoint) {
-        self.color = color
-        self.opacity = opacity
-        self.radius = radius
-        self.offset = offset
-        super.init()
+    public init(configuration: ShadowConfiguration) {
+        self.configuration = configuration
     }
     
     public func copy(with zone: NSZone? = nil) -> Any {
-        __ShadowConfiguration(color: color, opacity: opacity, radius: radius, offset: offset)
+        __ShadowConfiguration(configuration: configuration)
     }
 }
 
@@ -324,11 +260,11 @@ extension ShadowConfiguration: ReferenceConvertible {
     public typealias ReferenceType = __ShadowConfiguration
     
     public func _bridgeToObjectiveC() -> __ShadowConfiguration {
-        return __ShadowConfiguration(color: color, opacity: opacity, radius: radius, offset: offset)
+        return __ShadowConfiguration(configuration: self)
     }
     
     public static func _forceBridgeFromObjectiveC(_ source: __ShadowConfiguration, result: inout ShadowConfiguration?) {
-        result = ShadowConfiguration(color: source.color, opacity: source.opacity, radius: source.radius, offset: source.offset)
+        result = source.configuration
     }
     
     public static func _conditionallyBridgeFromObjectiveC(_ source: __ShadowConfiguration, result: inout ShadowConfiguration?) -> Bool {

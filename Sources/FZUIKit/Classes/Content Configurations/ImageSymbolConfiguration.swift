@@ -125,27 +125,34 @@ public struct ImageSymbolConfiguration: Hashable {
         self.imageScale = imageScale
     }
 
-    /// Creates a configuration with a monochrome color configuration using the tint color.
+    /// Creates a configuration with a monochrome color using the tint color.
     public static var monochrome: Self {
         Self(color: .monochrome)
     }
 
-    /// Creates a configuration with a monochrome color configuration using the specified color.
+    /// Creates a configuration with a monochrome color using the specified color.
     public static func monochrome(_ color: NSUIColor) -> Self {
         Self(color: .monochrome(color))
     }
 
-    /// Creates a configuration with a hierarchical color configuration with the specified color.
+    /// Creates a configuration with a hierarchical color with the specified color.
     public static func hierarchical(_ color: NSUIColor) -> Self {
         Self(color: .hierarchical(color))
     }
+    
+    #if os(macOS)
+    /// Creates a configuration with a hierarchical color using the tint color.
+    public static var hierarchical: Self {
+        Self(color: .hierarchical)
+    }
+    #endif
 
-    /// Creates a configuration with a multicolor configuration with the specified color.
+    /// Creates a configuration with a multicolor color with the specified color.
     public static func multicolor(_ color: NSUIColor) -> Self {
         Self(color: .multicolor(color))
     }
 
-    /// Creates a configuration with a palette color configuration with the specified primary, secondary and tertiary color.
+    /// Creates a configuration with a palette color configuration with the specified colors.
     public static func palette(_ primary: NSUIColor, _ secondary: NSUIColor, _ tertiary: NSUIColor? = nil) -> Self {
         Self(color: .palette(primary, secondary, tertiary))
     }
@@ -360,6 +367,20 @@ public struct ImageSymbolConfiguration: Hashable {
         public static var hierarchical: Self {
             hierarchical(nil)
         }
+        
+        var isMonochrome: Bool {
+            switch self {
+            case .monochrome: return true
+            default: return false
+            }
+        }
+        
+        var isHierarchical: Bool {
+            switch self {
+            case .hierarchical(_): return true
+            default: return false
+            }
+        }
         #else
         ///  A monochrome color configuration using the specified color.
         case monochrome(NSUIColor?)
@@ -481,14 +502,6 @@ public struct ImageSymbolConfiguration: Hashable {
 }
 
 @available(macOS 12.0, iOS 16.0, tvOS 16.0, watchOS 8.0, *)
-extension NSUIImage.SymbolConfiguration {
-    var symbolConfiguration: ImageSymbolConfiguration? {
-        get { getAssociatedValue("symbolConfiguration", initialValue: nil) }
-        set { setAssociatedValue(newValue, key: "symbolConfiguration") }
-    }
-}
-
-@available(macOS 12.0, iOS 16.0, tvOS 16.0, watchOS 8.0, *)
 public extension ImageSymbolConfiguration {
     #if os(macOS)
         /// Returns a `NSImage.SymbolConfiguration` representation.
@@ -502,6 +515,7 @@ public extension ImageSymbolConfiguration {
             nsUI()
         }
     #endif
+    
     internal func nsUI() -> NSUIImage.SymbolConfiguration {
         var configuration: NSUIImage.SymbolConfiguration
         switch color {
@@ -553,8 +567,6 @@ public extension ImageSymbolConfiguration {
                 configuration = configuration.scale(symbolScale)
             }
         #endif
-
-        configuration.symbolConfiguration = self
         return configuration
     }
 }
@@ -565,28 +577,25 @@ public extension NSUIImageView {
     #if os(macOS)
     /// The configuration values to use when rendering the image.
     var imageSymbolConfiguration: ImageSymbolConfiguration? {
-        get { symbolConfiguration?.symbolConfiguration }
-        set { symbolConfiguration = newValue?.nsUI() }
+        get { getAssociatedValue("_imageSymbolConfiguration") }
+        set {
+            setAssociatedValue(newValue, key: "_imageSymbolConfiguration")
+            symbolConfiguration = newValue?.nsUI()
+        }
     }
+
     #else
     /// The configuration values to use when rendering the image.
     var preferredImageSymbolConfiguration: ImageSymbolConfiguration? {
-        get { preferredSymbolConfiguration?.symbolConfiguration }
-        set { preferredSymbolConfiguration = newValue?.nsUI() }
+        get { getAssociatedValue("_imageSymbolConfiguration") }
+        set {
+            setAssociatedValue(newValue, key: "_imageSymbolConfiguration")
+            preferredSymbolConfiguration = newValue?.nsUI()
+        }
     }
     #endif
 }
 
-@available(macOS 12.0, iOS 16.0, tvOS 16.00, *)
-public extension NSUIButton {
-    #if os(macOS)
-    /// The configuration values to use when rendering the image.
-    var imageSymbolConfiguration: ImageSymbolConfiguration? {
-        get { symbolConfiguration?.symbolConfiguration }
-        set { symbolConfiguration = newValue?.nsUI() }
-    }
-    #endif
-}
 #endif
 
 @available(macOS 12.0, iOS 16.0, tvOS 16.0, watchOS 8.0, *)
@@ -658,14 +667,5 @@ public extension View {
         func applyingSymbolConfiguration(_ configuration: ImageSymbolConfiguration) -> NSUIImage? {
             applyingSymbolConfiguration(configuration.nsUI())
 
-        }
-        
-        /// The configuration details for a symbol image.
-        var imageSymbolConfiguration: ImageSymbolConfiguration? {
-            #if os(macOS)
-            symbolConfiguration.symbolConfiguration
-            #else
-            symbolConfiguration?.symbolConfiguration
-            #endif
         }
     }

@@ -33,10 +33,48 @@
             (self as? NSControl)?.backgroundStyle = backgroundStyle
             (self as? NSTableCellView)?.backgroundStyle = backgroundStyle
 
+            if #available(macOS 12.0, *), let view = self as? NSImageView {
+                view.updateSymbolConfiguration()
+            }
+            
             for subview in subviews {
                 subview.setBackgroundStyle(backgroundStyle)
             }
         }
     }
+
+@available(macOS 12.0, *)
+extension NSImageView {
+    func updateSymbolConfiguration() {
+        configurationObservation = nil
+        if backgroundStyle == .emphasized {
+            previousConfiguration = symbolConfiguration
+            if let configuration = symbolConfiguration {
+                let copy = NSImage.SymbolConfiguration()
+                copy.pointSize = configuration.pointSize
+                copy.setValue(configuration.value(forKey: "weight"), forKey: "weight")
+                copy.setValue(configuration.value(forKey: "scale"), forKey: "scale")
+                symbolConfiguration = copy
+            }
+            configurationObservation = observeChanges(for: \.symbolConfiguration) { [weak self] old, new in
+                guard let self = self else { return }
+                self.updateSymbolConfiguration()
+            }
+        } else if backgroundStyle != .emphasized, let configuration = previousConfiguration {
+            symbolConfiguration = configuration
+            previousConfiguration = nil
+        }
+    }
+    
+    var configurationObservation: KeyValueObservation? {
+        get { getAssociatedValue("configurationObservation") }
+        set { setAssociatedValue(newValue, key: "configurationObservation") }
+    }
+    
+    var previousConfiguration: NSImage.SymbolConfiguration? {
+        get { getAssociatedValue("previousConfiguration") }
+        set { setAssociatedValue(newValue, key: "previousConfiguration") }
+    }
+}
 
 #endif
