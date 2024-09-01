@@ -7,6 +7,10 @@
 
 import AVFoundation
 import Foundation
+import FZSwiftUtils
+#if os(macOS)
+import AppKit
+#endif
 
 public extension AVAsset {
     /// The natural dimensions of a video asset.
@@ -44,19 +48,95 @@ public extension AVAsset {
     }
 
     /// The number of audio channels.
-    var audioChannels: Int? {
-        tracks.compactMap(\.audioChannels).max()
+    var audioChannels: Int {
+        tracks.compactMap(\.audioChannels).max() ?? 0
+    }
+    
+    /// The duration of the asset.
+    @available(macOS 12, iOS 15, tvOS 15, watchOS 8, *)
+    var timeDuration: TimeDuration? {
+        (try? load(.duration))?.timeDuration
+    }
+    
+    /// A Boolean value that indicates whether the the asset has audio.
+    var hasAudio: Bool {
+        audioChannels > 0
+    }
+    
+    /// A Boolean value that indicates whether the the asset has video.
+    var hasVideo: Bool {
+        !tracks(withMediaType: .video).isEmpty
     }
 
     /// The video orientation.
     enum VideoOrientation: String {
-        /// Vertical orientation.
+        /// Vertical.
         case vertical
-        /// Horizontal orientation.
+        /// Horizontal.
         case horizontal
-        /// Square orientation.
+        /// Square.
         case square
     }
+    
+    #if os(macOS) || os(iOS) || os(tvOS)
+    /**
+     Returns the video frames as an array of `CGImage`.
+     
+     If the asset doesn't contain a video track, it returns an empty array.
+     
+     - Parameter unique: A Boolean value that indicates whether to return only unique frames.
+     */
+    func videoFrames(unique: Bool = false) -> [CGImage] {
+        let images = videoImageBuffers.compactMap({$0.cgImage})
+        return unique ? images.uniqueImages() : images
+    }
+    
+    internal var videoImageBuffers: [CVImageBuffer] {
+        guard let reader = try? AVAssetReader(asset: self), let videoTrack = tracks(withMediaType: .video).first else { return [] }
+        let trackReaderOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: [String(kCVPixelBufferPixelFormatTypeKey): NSNumber(value: kCVPixelFormatType_32BGRA)])
+        reader.add(trackReaderOutput)
+        reader.startReading()
+        return trackReaderOutput.imageBuffers()
+    }
+    #endif
+    
+    #if os(macOS)
+    /**
+     Returns gif data for a video asset.
+     
+     - Parameters:
+        - uniqueFrames: A Boolean value that indicates whether the gif should only use unique video frames.
+        - duration: The gif animation duration, or `nil` to use the video duration.
+     */
+    func gifData(uniqueFrames: Bool = true, duration: Double? = nil) -> Data? {
+        let images = videoFrames(unique: uniqueFrames).compactMap({$0.nsUIImage})
+        if let duration = duration {
+            return NSUIImage.gifData(from: images, duration: duration)
+        }
+        if #available(macOS 12, iOS 15, tvOS 15, watchOS 8, *), let duration = timeDuration?.seconds {
+            return NSUIImage.gifData(from: images, duration: duration)
+        }
+        return NSUIImage.gifData(from: images, duration: self.duration.timeDuration.seconds)
+    }
+    
+    /**
+     Returns an animated image for a video asset.
+     
+     - Parameters:
+        - uniqueFrames: A Boolean value that indicates whether the animated image should only use unique video frames.
+        - duration: The image animation duration, or `nil` to use the video duration.
+     */
+    func animatedImage(uniqueFrames: Bool = true, duration: CGFloat? = nil) -> NSUIImage? {
+        let images = videoFrames(unique: uniqueFrames).compactMap({$0.nsUIImage})
+        if let duration = duration {
+            return NSUIImage.animatedImage(images: images, duration: duration)
+        }
+        if #available(macOS 12, iOS 15, tvOS 15, watchOS 8, *), let duration = timeDuration?.seconds {
+            return NSUIImage.animatedImage(images: images, duration: duration)
+        }
+        return NSUIImage.animatedImage(images: images, duration: self.duration.timeDuration.seconds)
+    }
+    #endif
 }
 
 public extension AVAssetTrack {
