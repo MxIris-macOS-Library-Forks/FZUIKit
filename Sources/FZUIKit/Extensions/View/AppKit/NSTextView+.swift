@@ -38,46 +38,112 @@ import FZSwiftUtils
             get { getAssociatedValue("editingHandlers", initialValue: EditingHandler()) }
             set {
                 setAssociatedValue(newValue, key: "editingHandlers")
-                observeEditing()
+                setupTextViewDelegate()
             }
         }
         
-        var editingNotificationTokens: [NotificationToken] {
-            get { getAssociatedValue("editingNotificationTokens", initialValue: []) }
-            set { setAssociatedValue(newValue, key: "editingNotificationTokens") }
-        }
-        
-        var previousString: String {
-            get { getAssociatedValue("previousString", initialValue: string) }
-            set { setAssociatedValue(newValue, key: "previousString") }
-        }
-        
-        func observeEditing() {
-            if editingHandlers.needsObservation {
-                previousString = string
-                editingNotificationTokens.append(NotificationCenter.default.observe(NSTextField.textDidBeginEditingNotification, object: self) { [weak self] notification in
-                    guard let self = self else { return }
-                    self.previousString = self.string
-                    self.editingHandlers.didBegin?()
-                })
-                editingNotificationTokens.append(NotificationCenter.default.observe(NSTextField.textDidChangeNotification, object: self) { [weak self] notification in
-                    guard let self = self else { return }
-                    if let shouldEdit = editingHandlers.shouldEdit {
-                        if shouldEdit(self.string) {
-                            self.previousString = string
-                        } else {
-                            self.string = self.previousString
-                        }
-                    }
-                    self.editingHandlers.didEdit?()
-                })
-                editingNotificationTokens.append(NotificationCenter.default.observe(NSTextField.textDidEndEditingNotification, object: self) { [weak self] notification in
-                    guard let self = self else { return }
-                    self.editingHandlers.didEnd?()
-                })
-            } else {
-                editingNotificationTokens = []
+        /// The minimum numbers of characters needed when the user edits the string value.
+        public var minimumNumberOfCharacters: Int? {
+            get { getAssociatedValue("minimumNumberOfCharacters") }
+            set { 
+                guard newValue != minimumNumberOfCharacters else { return }
+                setAssociatedValue(newValue, key: "minimumNumberOfCharacters")
+                setupTextViewDelegate()
             }
+        }
+        
+        /// Sets the minimum numbers of characters needed when the user edits the string value.
+        @discardableResult
+        public func minimumNumberOfCharacters(_ minimum: Int?) -> Self {
+            minimumNumberOfCharacters = minimum
+            return self
+        }
+        
+        /// The maximum numbers of characters allowed when the user edits the string value.
+        public var maximumNumberOfCharacters: Int? {
+            get { getAssociatedValue("minimumNumberOfCharacters") }
+            set { 
+                guard newValue != maximumNumberOfCharacters else { return }
+                setAssociatedValue(newValue, key: "minimumNumberOfCharacters")
+                setupTextViewDelegate()
+            }
+        }
+        
+        /// Sets the maximum numbers of characters allowed when the user edits the string value.
+        @discardableResult
+        public func maximumNumberOfCharacters(_ maximum: Int?) -> Self {
+            maximumNumberOfCharacters = maximum
+            return self
+        }
+        
+        /// The allowed characters the user can enter when editing.
+        public struct AllowedCharacters: OptionSet {
+            public let rawValue: UInt
+            /// Allows numeric characters (like 1, 2, etc.)
+            public static let digits = AllowedCharacters(rawValue: 1 << 0)
+            /// Allows all letter characters.
+            public static let letters: AllowedCharacters = [.lowercaseLetters, .uppercaseLetters]
+            /// Allows alphabetic lowercase characters (like a, b, c, etc.)
+            public static let lowercaseLetters = AllowedCharacters(rawValue: 1 << 1)
+            /// Allows alphabetic uppercase characters (like A, B, C, etc.)
+            public static let uppercaseLetters = AllowedCharacters(rawValue: 1 << 2)
+            /// Allows all alphanumerics characters.
+            public static let alphanumerics: AllowedCharacters = [.digits, .lowercaseLetters, .uppercaseLetters]
+            /// Allows symbols (like !, -, /, etc.)
+            public static let symbols = AllowedCharacters(rawValue: 1 << 3)
+            /// Allows emoji characters (like 🥰 ❤️, etc.)
+            public static let emojis = AllowedCharacters(rawValue: 1 << 4)
+            /// Allows whitespace characters.
+            public static let whitespaces = AllowedCharacters(rawValue: 1 << 5)
+            /// Allows new line characters.
+            public static let newLines = AllowedCharacters(rawValue: 1 << 6)
+            /// Allows all characters.
+            public static let all: AllowedCharacters = [.alphanumerics, .symbols, .emojis, .whitespaces, .newLines]
+            
+            var needsDelegate: Bool {
+                self != AllowedCharacters.all
+            }
+            
+            func isValid(_ string: String) -> Bool {
+                trimString(string) == string
+            }
+
+            func trimString(_ string: String) -> String {
+                guard self != .all else { return string }
+                var string = string
+                var characterSet = CharacterSet()
+                if contains(.lowercaseLetters) == false { characterSet += .lowercaseLetters }
+                if contains(.uppercaseLetters) == false { characterSet += .uppercaseLetters }
+                if contains(.digits) == false { characterSet += .decimalDigits }
+                if contains(.symbols) == false { characterSet += .symbols}
+                if contains(.newLines) == false { characterSet += .newlines }
+                if !characterSet.isEmpty { string = string.trimmingCharacters(in: characterSet) }
+                if contains(.whitespaces) == false { string = string.replacingOccurrences(of: " ", with: "") }
+                if contains(.emojis) == false { string = string.trimmingEmojis() }
+                return string
+            }
+
+            /// Creates a allowed characters structure with the specified raw value.
+            public init(rawValue: UInt) {
+                self.rawValue = rawValue
+            }
+        }
+
+        /// The allowed characters the user can enter when editing.
+        public var allowedCharacters: AllowedCharacters {
+            get { getAssociatedValue("allowedCharacters", initialValue: .all) }
+            set {
+                guard newValue != allowedCharacters else { return }
+                setAssociatedValue(newValue, key: "allowedCharacters")
+                setupTextViewDelegate()
+            }
+        }
+        
+        /// Sets the allowed characters the user can enter when editing.
+        @discardableResult
+        public func allowedCharacters(_ allowedCharacters: AllowedCharacters) -> Self {
+            self.allowedCharacters = allowedCharacters
+            return self
         }
         
         /// Creates a text view with an enclosing scroll view.
@@ -289,10 +355,30 @@ import FZSwiftUtils
             return self
         }
         
+        /// The range of characters selected in the text view.
+        public var selectedStringRange: Range<String.Index> {
+            get { Range(selectedRange, in: string)! }
+            set { selectedStringRanges = [newValue] }
+        }
+        
+        /// Sets the range of characters selected in the text view.
+        @discardableResult
+        public func selectedStringRange(_ range: Range<String.Index>) -> Self {
+            selectedStringRange = range
+            return self
+        }
+        
         /// The ranges of characters selected in the text view.
         public var selectedStringRanges: [Range<String.Index>] {
             get { selectedRanges.compactMap({$0.rangeValue}).compactMap({ Range($0, in: string) }) }
             set { selectedRanges = newValue.compactMap({NSRange($0, in: string).nsValue}) }
+        }
+        
+        /// Sets the ranges of characters selected in the text view.
+        @discardableResult
+        public func selectedStringRanges(_ ranges: [Range<String.Index>]) -> Self {
+            selectedStringRanges = ranges
+            return self
         }
         
         /// The fonts of the selected text.
@@ -381,18 +467,22 @@ import FZSwiftUtils
             select(range.lowerBound..<range.upperBound)
         }
         
-        var _delegate: TextViewDelegate? {
-            get { getAssociatedValue("_delegate") }
-            set { setAssociatedValue(newValue, key: "_delegate") }
-        }
-        
         /// A Boolean value that indicates whether the text view should stop editing when the user clicks outside the text view.
         public var endsEditingOnOutsideClick: Bool {
-            get { getAssociatedValue("endsEditingOnOutsideClick", initialValue: false) }
+            get { mouseDownMonitor != nil }
             set {
                 guard newValue != endsEditingOnOutsideClick else { return }
-                setAssociatedValue(newValue, key: "endsEditingOnOutsideClick")
-                setupMouseMonitor()
+                if newValue {
+                    mouseDownMonitor = NSEvent.localMonitor(for: .leftMouseDown) { [weak self] event in
+                        guard let self = self, self.endsEditingOnOutsideClick, self.isFirstResponder else { return event }
+                        if self.bounds.contains(event.location(in: self)) == false {
+                            self.resignFirstResponding()
+                        }
+                        return event
+                    }
+                } else {
+                    mouseDownMonitor = nil
+                }
             }
         }
         
@@ -407,22 +497,6 @@ import FZSwiftUtils
             get { getAssociatedValue("mouseDownMonitor") }
             set { setAssociatedValue(newValue, key: "mouseDownMonitor") }
         }
-
-        func setupMouseMonitor() {
-            if endsEditingOnOutsideClick {
-                if mouseDownMonitor == nil {
-                    mouseDownMonitor = NSEvent.localMonitor(for: .leftMouseDown) { [weak self] event in
-                        guard let self = self, self.endsEditingOnOutsideClick, self.isFirstResponder else { return event }
-                        if self.bounds.contains(event.location(in: self)) == false {
-                            self.resignFirstResponding()
-                        }
-                        return event
-                    }
-                }
-            } else {
-                mouseDownMonitor = nil
-            }
-        }
         
         /// The action to perform when the user presses the escape key.
         public enum EscapeKeyAction {
@@ -433,7 +507,7 @@ import FZSwiftUtils
             /// Ends editing the text and resets it to the the state before editing.
             case endEditingAndReset
             
-            var needsSwizzling: Bool {
+            var needsDelegate: Bool {
                 switch self {
                 case .none: return false
                 default: return true
@@ -448,7 +522,7 @@ import FZSwiftUtils
             /// Ends editing the text.
             case endEditing
             
-            var needsSwizzling: Bool {
+            var needsDelegate: Bool {
                 switch self {
                 case .none: return false
                 case .endEditing: return true
@@ -462,7 +536,7 @@ import FZSwiftUtils
             set {
                 guard actionOnEnterKeyDown != newValue else { return }
                 setAssociatedValue(newValue, key: "actionOnEnterKeyDown")
-                swizzleTextView()
+                setupTextViewDelegate()
             }
         }
         
@@ -479,7 +553,7 @@ import FZSwiftUtils
             set {
                 guard actionOnEscapeKeyDown != newValue else { return }
                 setAssociatedValue(newValue, key: "actionOnEscapeKeyDown")
-                swizzleTextView()
+                setupTextViewDelegate()
             }
         }
 
@@ -490,22 +564,25 @@ import FZSwiftUtils
             return self
         }
         
-        var needsSwizzling: Bool {
-            actionOnEscapeKeyDown.needsSwizzling || actionOnEnterKeyDown.needsSwizzling
+        var textViewDelegate: TextViewDelegate? {
+            get { getAssociatedValue("textViewDelegate") }
+            set { setAssociatedValue(newValue, key: "textViewDelegate") }
         }
         
-        func swizzleTextView() {
-            if needsSwizzling {
-                if _delegate == nil {
-                    _delegate = TextViewDelegate(self)
-                }
-            } else {
-                _delegate = nil
+        func setupTextViewDelegate() {
+            if !actionOnEscapeKeyDown.needsDelegate && !actionOnEnterKeyDown.needsDelegate && !editingHandlers.needsObservation && minimumNumberOfCharacters == nil && maximumNumberOfCharacters == nil && !allowedCharacters.needsDelegate {
+                textViewDelegate = nil
+            } else if textViewDelegate == nil {
+                textViewDelegate = TextViewDelegate(self)
             }
         }
         
         class TextViewDelegate: NSObject, NSTextViewDelegate {
             var string: String
+            var previousString = ""
+            weak var delegate: NSTextViewDelegate?
+            weak var textView: NSTextView!
+            var delegateObservation: KeyValueObservation!
             
             func textView(_ textView: NSTextView, clickedOn cell: NSTextAttachmentCellProtocol, in cellFrame: NSRect, at charIndex: Int) {
                 delegate?.textView?(textView, clickedOn: cell, in: cellFrame, at: charIndex)
@@ -544,29 +621,63 @@ import FZSwiftUtils
             }
             
             func textDidBeginEditing(_ notification: Notification) {
-                string = (notification.object as? NSText)?.string ?? ""
+                string = (notification.object as? NSText)?.string ?? textView.string
+                previousString = string
+                editingRange = textView.selectedRange
                 delegate?.textDidBeginEditing?(notification)
+                textView?.editingHandlers.didBegin?()
             }
             
             func textDidChange(_ notification: Notification) {
                 delegate?.textDidChange?(notification)
+                updateString()
             }
             
             func textDidEndEditing(_ notification: Notification) {
                 delegate?.textDidEndEditing?(notification)
+                textView.editingHandlers.didEnd?()
             }
             
-            weak var delegate: NSTextViewDelegate?
-            var delegateObservation: KeyValueObservation?
+            var editingRange = NSRange(location: 0, length: 0)
+            
+            func updateString() {
+                let newString = textView.allowedCharacters.trimString(textView.string)
+                if let maxCharCount = textView.maximumNumberOfCharacters, newString.count > maxCharCount {
+                    if previousString.count <= maxCharCount {
+                        textView.string = previousString
+                        textView.selectedRange = editingRange
+                    } else {
+                        textView.string = String(newString.prefix(maxCharCount))
+                    }
+                } else if let minCharCount = textView.minimumNumberOfCharacters, newString.count < minCharCount {
+                    if previousString.count >= minCharCount {
+                        textView.string = previousString
+                        textView.selectedRange = editingRange
+                    }
+                } else if textView.editingHandlers.shouldEdit?(textView.string) == false {
+                    textView.string = previousString
+                    textView.selectedRange = editingRange
+                } else {
+                    textView.string = newString
+                    if previousString == newString {
+                        textView.selectedRange = editingRange
+                    }
+                }
+                previousString = textView.string
+                editingRange = textView.selectedRange
+                textView.editingHandlers.didEdit?()
+            }
+            
             init(_ textView: NSTextView) {
                 delegate = textView.delegate
                 self.string = textView.string
+                self.textView = textView
                 super.init()
                 textView.delegate = self
                 delegateObservation = textView.observeChanges(for: \.delegate) { [weak self] _, new in
                     guard let self = self, new !== self else { return }
                     self.delegate = new
-                    textView.delegate = self
+                    self.textView?.delegate = self
                 }
             }
         }
