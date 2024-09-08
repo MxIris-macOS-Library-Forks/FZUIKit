@@ -22,6 +22,30 @@ public extension AVPlayer {
         /// The player has an error.
         case error(Error)
         
+        /// A Boolean value that indicates whether the player is playing.
+        public var isPlaying: Bool {
+            switch self {
+            case .isPlaying: return true
+            default: return false
+            }
+        }
+        
+        /// A Boolean value that indicates whether the player is paused.
+        public var isPaused: Bool {
+            switch self {
+            case .isPaused: return true
+            default: return false
+            }
+        }
+        
+        /// A Boolean value that indicates whether the player is stopped.
+        public var isStopped: Bool {
+            switch self {
+            case .isStopped: return true
+            default: return false
+            }
+        }
+        
         public var description: String {
             switch self {
             case .isPlaying: return "playing"
@@ -54,14 +78,60 @@ public extension AVPlayer {
         if let error = error {
             return .error(error)
         } else {
-            if rate == 0, currentTime() != .zero {
-                return .isPaused
-            } else if rate != 0 {
-                return .isPlaying
-            } else {
-                return .isStopped
+            if currentItem != nil {
+                if rate == 0, currentTime() != .zero {
+                    return .isPaused
+                } else if rate != 0 {
+                    return .isPlaying
+                }
             }
         }
+        return .isStopped
+    }
+    
+    /// The handler that gets called when the playback state changes.
+    var stateHandler: ((State)->())? {
+        get { getAssociatedValue("stateHandler") }
+        set {
+            setAssociatedValue(newValue, key: "stateHandler")
+            if newValue == nil {
+                playerObserver = nil
+            } else if playerObserver == nil {
+                previousState = state
+                playerObserver = KeyValueObserver(self)
+                playerObserver?.add(\.error) { [weak self] _, error in
+                    guard let self = self else { return }
+                    self.callStateHandler()
+                }
+                playerObserver?.add(\.currentItem) { [weak self] _, item in
+                    guard let self = self else { return }
+                    self.callStateHandler()
+                }
+                playerObserver?.add(\.rate) { [weak self] old, new in
+                    guard let self = self else { return }
+                    self.callStateHandler()
+                }
+            }
+        }
+    }
+    
+    internal func callStateHandler() {
+        guard let stateHandler = stateHandler else { return }
+        let state = self.state
+        if state != previousState {
+            stateHandler(state)
+            previousState = state
+        }
+    }
+    
+    internal var playerObserver: KeyValueObserver<AVPlayer>? {
+        get { getAssociatedValue("playerObserver") }
+        set { setAssociatedValue(newValue, key: "playerObserver") }
+    }
+    
+    internal var previousState: State {
+        get { getAssociatedValue("previousState") ?? .isStopped }
+        set { setAssociatedValue(newValue, key: "previousState") }
     }
 
     /// Stops playback of the current item and seeks it to the start.

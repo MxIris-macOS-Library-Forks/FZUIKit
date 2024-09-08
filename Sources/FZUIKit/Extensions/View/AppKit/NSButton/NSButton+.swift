@@ -259,6 +259,44 @@ public extension NSButton {
     }
     
     /**
+     Creates a borderless button.
+     
+     - Parameter title: The title of the button.
+     */
+    static func borderless(_ title: String) -> NSButton {
+        let button = NSButton.push(title).isBordered(false)
+        button.sizeToFit()
+        return button
+    }
+    
+    /**
+     Creates a push button.
+     
+     - Parameters:
+        - title: The title of the button.
+        - image: The image of the button.
+     */
+    static func borderless(_ title: String? = nil, image: NSImage) -> NSButton {
+        let button = NSButton.push(title, image: image).isBordered(false)
+        button.sizeToFit()
+        return button
+    }
+    
+    /**
+     Creates a borderless button.
+     
+     - Parameters:
+        - title: The title of the button.
+        - symbolName: The name of the symbol image.
+     */
+    @available(macOS 11.0, *)
+    static func borderless(_ title: String? = nil, symbolName: String) -> NSButton {
+        let button = NSButton.push(title, symbolName: symbolName).isBordered(false)
+        button.sizeToFit()
+        return button
+    }
+    
+    /**
      Creates a check box button.
      
      - Parameters:
@@ -429,6 +467,10 @@ public extension NSButton {
     internal var buttonStateObserver: KeyValueObservation? {
         get { getAssociatedValue("buttonStateObserver") }
         set { setAssociatedValue(newValue, key: "buttonStateObserver") }
+    }
+    
+    internal var buttonObserver: KeyValueObserver<NSButton> {
+        get { getAssociatedValue("buttonObserver", initialValue: KeyValueObserver(self)) }
     }
     
     internal func updateButtonStateObserver() {
@@ -647,30 +689,72 @@ public extension NSButton {
         return self
     }
     
+    /// Sizes the button to fit it's content with the specified image to title spacing.
+    func sizeToFit(imageToTitleSpacing spacing: CGFloat) {
+        sizeToFit()
+        guard displayingImage != nil, displayingTitle != "" else { return }
+        switch imagePosition {
+        case .imageAbove, .imageBelow:
+            frame.size.height += spacing
+        case .imageLeft, .imageRight, .imageLeading, .imageTrailing:
+            frame.size.width += spacing
+        default: break
+        }
+    }
+    
+    internal var displayingTitle: String {
+        state == .on && alternateTitle != "" ? alternateTitle : title
+    }
+    
+    internal var displayingImage: NSImage? {
+        state == .on ? alternateImage ?? image : image
+    }
+    
     internal convenience init(_ title: String? = nil, image: NSImage? = nil, style: BezelStyle? = nil) {
         self.init(title: title ?? "", target: nil, action: nil)
         self.image = image
+        if image != nil {
+            imagePosition = .imageLeading
+        }
         if let style = style {
             bezelStyle = style
         } else if title == nil {
             bezelStyle = .smallSquare
             isBordered = false
         }
-        sizeToFit()
+        sizeToFit(imageToTitleSpacing: 4.0)
     }
     
     @available(macOS 11.0, *)
     internal convenience init(_ title: String? = nil, symbolName: String, style: BezelStyle? = nil) {
         self.init(title: title ?? "", target: nil, action: nil)
         image = NSImage(systemSymbolName: symbolName)
+        if image != nil {
+            imagePosition = .imageLeading
+        }
         if let style = style {
             bezelStyle = style
         } else if title == nil {
             bezelStyle = .smallSquare
             isBordered = false
         }
-        sizeToFit()
+        sizeToFit(imageToTitleSpacing: 4.0)
     }
+    
+    /*
+    var autoSizes: Bool {
+        get { buttonObserver.isObserving(\.image) }
+        set {
+            guard newValue != autoSizes else { return }
+            if newValue {
+                
+            } else {
+                buttonObserver.remove(\.title)
+                buttonObserver.remove(\.image)
+            }
+        }
+    }
+    */
 }
 
 #endif

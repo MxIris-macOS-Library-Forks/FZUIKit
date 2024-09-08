@@ -13,14 +13,14 @@ import UniformTypeIdentifiers
 extension AVPlayerView {
     /// Sets the value that determines how the player view displays video content within its bounds.
     @discardableResult
-    func videoGravity(_ videoGravity: AVLayerVideoGravity) -> Self {
+    public func videoGravity(_ videoGravity: AVLayerVideoGravity) -> Self {
         self.videoGravity = videoGravity
         return self
     }
     
     /// Sets the control style.
     @discardableResult
-    func controlStyle(_ style: AVPlayerViewControlsStyle) -> Self {
+    public func controlStyle(_ style: AVPlayerViewControlsStyle) -> Self {
         controlsStyle = style
         return self
     }

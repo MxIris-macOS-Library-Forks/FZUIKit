@@ -42,6 +42,63 @@ import FZSwiftUtils
             }
         }
         
+        /**
+         Returns a text view with an enclosing scroll view.
+         
+         The scroll view can be accessed via the text view's `enclosingScrollView` property.
+         
+         - Parameters:
+            - scrollsHorizontal: A Boolean value that indicates whether the text view is horizontal scrollable.
+            - bordered: A Boolean value that indicates whether the scroll view is bordered.
+         - Returns: The scroll view.
+              */
+        public static func scrollable(scrollsHorizontal: Bool = false, bordered: Bool = false) -> NSTextView {
+            let textView = NSTextView()
+            textView.addEnclosingScrollView(scrollsHorizontal: scrollsHorizontal, bordered: bordered)
+            return textView
+        }
+        
+        /**
+         Embeds the text view in a scroll view and returns that scroll view.
+         
+         If the text view is already emedded in a scroll view, it will return that.
+
+         The scroll view can be accessed via the text view's `enclosingScrollView` property.
+         
+         - Parameters:
+            - scrollsHorizontal: A Boolean value that indicates whether the text view is horizontal scrollable.
+            - bordered: A Boolean value that indicates whether the scroll view is bordered.
+         - Returns: The scroll view.
+         */
+        @discardableResult
+        public func addEnclosingScrollView(scrollsHorizontal: Bool, bordered: Bool = false) -> NSScrollView {
+            guard enclosingScrollView == nil else { return enclosingScrollView! }
+            if !translatesAutoresizingMaskIntoConstraints {
+                removeAllConstraints()
+                translatesAutoresizingMaskIntoConstraints = true
+            }
+            
+            let scrollView = NSScrollView(frame: bounds)
+
+            textContainer?.containerSize = CGSize(width: scrollsHorizontal ? .greatestFiniteMagnitude : scrollView.contentSize.width, height: .greatestFiniteMagnitude)
+            textContainer?.widthTracksTextView = !scrollsHorizontal
+
+            minSize = CGSize(width: 0, height: 0)
+            maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            isVerticallyResizable = true
+            isHorizontallyResizable = scrollsHorizontal
+            frame = CGRect(.zero, scrollView.contentSize)
+            
+            autoresizingMask = scrollsHorizontal ? [.width, .height] : [.width]
+
+            scrollView.borderType = bordered ? .lineBorder : .noBorder
+            scrollView.hasVerticalScroller = true
+            scrollView.hasHorizontalScroller = scrollsHorizontal
+            scrollView.documentView = self
+            scrollView.drawsBackground = false
+            return scrollView
+        }
+        
         /// The minimum numbers of characters needed when the user edits the string value.
         public var minimumNumberOfCharacters: Int? {
             get { getAssociatedValue("minimumNumberOfCharacters") }
@@ -97,6 +154,7 @@ import FZSwiftUtils
             public static let whitespaces = AllowedCharacters(rawValue: 1 << 5)
             /// Allows new line characters.
             public static let newLines = AllowedCharacters(rawValue: 1 << 6)
+            
             /// Allows all characters.
             public static let all: AllowedCharacters = [.alphanumerics, .symbols, .emojis, .whitespaces, .newLines]
             
@@ -112,14 +170,14 @@ import FZSwiftUtils
                 guard self != .all else { return string }
                 var string = string
                 var characterSet = CharacterSet()
-                if contains(.lowercaseLetters) == false { characterSet += .lowercaseLetters }
-                if contains(.uppercaseLetters) == false { characterSet += .uppercaseLetters }
-                if contains(.digits) == false { characterSet += .decimalDigits }
-                if contains(.symbols) == false { characterSet += .symbols}
-                if contains(.newLines) == false { characterSet += .newlines }
+                if !contains(.lowercaseLetters) { characterSet += .lowercaseLetters }
+                if !contains(.uppercaseLetters) { characterSet += .uppercaseLetters }
+                if !contains(.digits) { characterSet += .decimalDigits }
+                if !contains(.symbols) { characterSet += .symbols}
                 if !characterSet.isEmpty { string = string.trimmingCharacters(in: characterSet) }
-                if contains(.whitespaces) == false { string = string.replacingOccurrences(of: " ", with: "") }
-                if contains(.emojis) == false { string = string.trimmingEmojis() }
+                if !contains(.newLines) { string = string.replacingOccurrences(of: "\n", with: "") }
+                if !contains(.whitespaces) { string = string.replacingOccurrences(of: " ", with: "") }
+                if !contains(.emojis) { string = string.trimmingEmojis() }
                 return string
             }
 
