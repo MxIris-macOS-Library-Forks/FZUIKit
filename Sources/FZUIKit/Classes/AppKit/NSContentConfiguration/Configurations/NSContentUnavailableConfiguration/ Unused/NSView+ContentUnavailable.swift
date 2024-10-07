@@ -43,6 +43,7 @@
              }
          } else {
              self.unavailableView?.removeFromSuperview()
+             self.unavailableView = nil
          }
      }
 
