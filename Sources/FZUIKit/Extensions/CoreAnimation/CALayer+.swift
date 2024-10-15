@@ -17,6 +17,20 @@ import FZSwiftUtils
 
 #if os(macOS) || os(iOS) || os(tvOS)
     extension CALayer {
+        /**
+         The center point of the layer's frame rectangle.
+
+         Setting this property updates the origin of the rectangle in the frame property appropriately.
+
+         Use this property, instead of the frame property, when you want to change the position of a layer. The center point is always valid, even when scaling or rotation factors are applied to the layer's transform.
+
+         Changes to this property can be animated via `animator().center`.
+         */
+        @objc open var center: CGPoint {
+            get { frame.center }
+            set { frame.center = newValue }
+        }
+        
         /// The shadow of the layer.
         @objc open var shadow: ShadowConfiguration {
             get { .init(color: shadowColor?.nsUIColor, opacity: CGFloat(shadowOpacity), radius: shadowRadius, offset: shadowOffset.point) }
@@ -99,6 +113,53 @@ import FZSwiftUtils
         
         internal var borderLayer: DashedBorderLayer? {
             firstSublayer(type: DashedBorderLayer.self)
+        }
+        
+        /**
+         The relative percentage (between `0.0` and `1.0`) for rounding the corners based on the layer's height.
+         
+         For e.g. a  value of `0.5`  sets the corner radius to half the height of layer. The value can be used for a circular or capsule appearence of the layer depending if it's square.
+
+         The corner radius updates automatically, if the height of the layer changes.
+         
+         Changing the ``cornerRadius``, sets the value to `nil`.
+         */
+        public var relativeCornerRadius: CGFloat? {
+            get { getAssociatedValue("relativeCornerRadius") }
+            set {
+                setAssociatedValue(newValue?.clamped(to: 0...1), key: "relativeCornerRadius")
+                if newValue == nil {
+                    cornerFrameObservation = nil
+                    cornerRadiusObservation = nil
+                } else if cornerFrameObservation == nil {
+                    self.cornerRadius = frame.height * newValue!
+                    cornerFrameObservation = observeChanges(for: \.bounds) { [weak self] old, new in
+                        guard let self = self, old.height != new.height, let relativeCornerRadius = self.relativeCornerRadius else { return }
+                        self.isUpdatingCornerRadius = true
+                        self.cornerRadius = new.height * relativeCornerRadius
+                        self.isUpdatingCornerRadius = false
+                    }
+                    cornerRadiusObservation = observeChanges(for: \.cornerRadius) { [weak self] old, new in
+                        guard let self = self, !self.isUpdatingCornerRadius else { return }
+                        self.relativeCornerRadius = nil
+                    }
+                }
+            }
+        }
+        
+        var cornerRadiusObservation: KeyValueObservation? {
+            get { getAssociatedValue("cornerRadiusObservation") }
+            set { setAssociatedValue(newValue, key: "cornerRadiusObservation") }
+        }
+        
+        var isUpdatingCornerRadius: Bool {
+            get { getAssociatedValue("isUpdatingCornerRadius") ?? false }
+            set { setAssociatedValue(newValue, key: "isUpdatingCornerRadius") }
+        }
+        
+        var cornerFrameObservation: KeyValueObservation? {
+            get { getAssociatedValue("cornerFrameObservation") }
+            set { setAssociatedValue(newValue, key: "cornerFrameObservation") }
         }
         
         /// Sends the layer to the front of it's superlayer.

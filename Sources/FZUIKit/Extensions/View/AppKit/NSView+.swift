@@ -162,6 +162,21 @@ extension NSViewProtocol {
                 frame.center = newValue
             }
         }
+        
+        /**
+         The view’s position on the z axis.
+         
+         Changing the value of this property changes the front-to-back ordering of views onscreen. Higher values place the view visually closer to the viewer than views with lower values. This can affect the visibility of views whose frame rectangles overlap.
+         
+         Using this property turns the view into a layer-backed view. The value can be animated via `animator()`.
+         */
+        @objc open var zPosition: CGFloat {
+            get { layer?.zPosition ?? 0.0 }
+            set {
+                NSView.swizzleAnimationForKey()
+                optionalLayer?.zPosition = newValue
+            }
+        }
 
         /**
          The transform to apply to the view, relative to the center of its bounds.
@@ -318,6 +333,7 @@ extension NSViewProtocol {
             set {
                 let clipsToBounds = clipsToBounds
                 NSView.swizzleAnimationForKey()
+                relativeCornerRadius = nil
                 optionalLayer?.cornerRadius = newValue
                 if newValue != 0.0 {
                     // cornerShape = .normal
@@ -831,6 +847,6 @@ extension NSViewProtocol {
     }
 
     /// The `NSView` properties keys that can be animated.
-    private let NSViewAnimationKeys = ["transform", "transform3D", "anchorPoint", "cornerRadius", "roundedCorners", "_borderWidth", "borderColorAnimatable", "mask", "inverseMask", "backgroundColorAnimatable", "center", "shadowColorAnimatable", "shadowOffset", "shadowOpacity", "shadowRadius", "shadowPathAnimatable", "innerShadowColor", "innerShadowOffset", "innerShadowOpacity", "innerShadowRadius", "fontSize", "gradientStartPoint", "gradientEndPoint", "gradientLocations", "gradientColors", "contentOffset", "contentOffsetFractional", "documentSize"]
+    private let NSViewAnimationKeys = ["transform", "transform3D", "anchorPoint", "cornerRadius", "roundedCorners", "_borderWidth", "borderColorAnimatable", "mask", "inverseMask", "backgroundColorAnimatable", "center", "shadowColorAnimatable", "shadowOffset", "shadowOpacity", "shadowRadius", "shadowPathAnimatable", "innerShadowColor", "innerShadowOffset", "innerShadowOpacity", "innerShadowRadius", "fontSize", "gradientStartPoint", "gradientEndPoint", "gradientLocations", "gradientColors", "contentOffset", "contentOffsetFractional", "documentSize", "zPosition"]
 
 #endif
