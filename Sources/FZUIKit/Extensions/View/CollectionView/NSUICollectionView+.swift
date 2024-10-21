@@ -18,6 +18,23 @@ import FZSwiftUtils
             (0..<numberOfSections).flatMap({indexPaths(for: $0)})
         }
         
+        /// Returns the index paths of the currently displayed items. Unlike `indexPathsForVisibleItems()`  it only returns the items with visible frame.
+        func displayingIndexPaths(in rect: CGRect) -> [IndexPath] {
+            return (displayingItems(in: rect).compactMap { self.indexPath(for: $0) }).sorted()
+        }
+        
+        #if os(macOS)
+        /// Returns an array of all displayed items. Unlike `visibleItems()` it only returns the items with visible frame.
+        func displayingItems(in rect: CGRect) -> [NSUICollectionViewItem] {
+            visibleItems().filter { $0.view.frame.intersects(rect) }
+        }
+        #else
+        /// Returns an array of all displayed items. Unlike `visibleItems()` it only returns the items with visible frame.
+        func displayingItems(in rect: CGRect) -> [UICollectionViewCell] {
+            visibleCells.filter { $0.frame.intersects(rect) }
+        }
+        #endif
+        
         /**
          The item index paths for the specified section.
          - Parameter section: The section of the items.
