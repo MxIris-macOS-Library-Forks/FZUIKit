@@ -134,7 +134,7 @@ public extension CGColor {
     }
 }
 
-extension CGColor: CustomStringConvertible {
+extension CGColor: @retroactive CustomStringConvertible {
     public var description: String {
         CFCopyDescription(self) as String
     }

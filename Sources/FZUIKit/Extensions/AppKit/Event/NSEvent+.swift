@@ -133,7 +133,7 @@
         static let mouse: [NSEvent.EventType] = [.mouseMoved, .mouseExited, .mouseEntered, .leftMouseUp, .otherMouseUp, .rightMouseUp, .leftMouseDown, .otherMouseDown, .rightMouseDown, .leftMouseDragged, .otherMouseDragged, .rightMouseDragged]
     }
 
-extension NSEvent.EventTypeMask: Hashable {
+extension NSEvent.EventTypeMask: @retroactive Hashable {
 }
 
     public extension NSEvent.EventTypeMask {

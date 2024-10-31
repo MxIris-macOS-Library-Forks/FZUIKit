@@ -33,7 +33,7 @@
 
      internal func configurateUnavailableView() {
          if let contentUnavailableConfiguration = contentUnavailableConfiguration {
-             if var unavailableView = self.unavailableView, unavailableView.supports(contentUnavailableConfiguration) {
+             if let unavailableView = self.unavailableView, unavailableView.supports(contentUnavailableConfiguration) {
                  unavailableView.configuration = contentUnavailableConfiguration
              } else {
                  self.unavailableView?.removeFromSuperview()

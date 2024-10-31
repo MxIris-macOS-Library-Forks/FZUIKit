@@ -7,7 +7,7 @@
 
 #if os(macOS) || os(iOS)
     import FZSwiftUtils
-    import WebKit
+    @preconcurrency import WebKit
 
     /**
      An extended `WKWebView`.
@@ -147,7 +147,7 @@
             })
         }
         
-        override open func startDownload(using request: URLRequest, completionHandler: @escaping (WKDownload) -> Void) {
+        override open func startDownload(using request: URLRequest, completionHandler: @MainActor @Sendable @escaping (WKDownload) -> Void) {
             if sequentialOperationQueue.maxConcurrentOperationCount == 0 {
                 awaitingDownloadRequests.append(request)
                 sequentialOperationQueue.addOperation {
@@ -170,7 +170,7 @@
             }
         }
 
-        override open func resumeDownload(fromResumeData resumeData: Data, completionHandler: @escaping (WKDownload) -> Void) {
+        override open func resumeDownload(fromResumeData resumeData: Data, completionHandler: @MainActor @Sendable @escaping (WKDownload) -> Void) {
             if sequentialOperationQueue.maxConcurrentOperationCount == 0 {
                 awaitingResumeDatas.append(resumeData)
                 sequentialOperationQueue.addOperation {
