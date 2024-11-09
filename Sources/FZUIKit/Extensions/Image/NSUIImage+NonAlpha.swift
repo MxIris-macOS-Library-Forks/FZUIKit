@@ -93,16 +93,17 @@ extension NSUIImage {
      - Parameter maximumAlphaChannel: he maximum alpha value to consider as transparent. Any alpha value strictly greater than this is considered opaque.
      */
     public func nonAlphaRect(maximumAlphaChannel: UInt8 = 0) -> CGRect {
-        if let alphaRect: (Int, CGRect) = getAssociatedValue("nonAlphaRect"), alphaRect.0 == maximumAlphaChannel {
-            return alphaRect.1
+        if let alphaRect = nonAlphaRect[maximumAlphaChannel] {
+            return alphaRect
         }
-        #if os(macOS)
         let rect = cgImage?.nonAlphaRect(maximumAlphaChannel: maximumAlphaChannel) ?? CGRect(.zero, size)
-        #else
-        let rect = cgImage.nonAlphaRect(maximumAlphaChannel: maximumAlphaChannel)
-        #endif
-        setAssociatedValue((maximumAlphaChannel, rect), key: "nonAlphaRect")
+        nonAlphaRect[maximumAlphaChannel] = rect
         return rect
+    }
+    
+    var nonAlphaRect: [UInt8: CGRect] {
+        get { getAssociatedValue("nonAlphaRect", initialValue: [:]) }
+        set { setAssociatedValue(newValue, key: "nonAlphaRect") }
     }
     
     /**
@@ -111,10 +112,6 @@ extension NSUIImage {
      - Parameter maximumAlphaChannel: he maximum alpha value to consider as transparent. Any alpha value strictly greater than this is considered opaque.
      */
     public func croppedToNonTransparent(maximumAlphaChannel: UInt8 = 0) -> NSUIImage {
-        #if os(macOS)
-        cgImage?.croppedToNonTransparent(maximumAlphaChannel: maximumAlphaChannel).nsImage ?? self
-        #else
-        cgImage.croppedToNonTransparent(maximumAlphaChannel: maximumAlphaChannel).nsImage
-        #endif
+        cgImage?.croppedToNonTransparent(maximumAlphaChannel: maximumAlphaChannel).nsUIImage ?? self
     }
 }
