@@ -9,7 +9,7 @@
 import AppKit
 import FZSwiftUtils
 
-extension NSWindow {    
+extension NSWindow {
     /// Observes the main state of the window.
     @objc open func observeIsMain(handler: @escaping (_ isMain: Bool)->()) -> NotificationToken {
         [NotificationCenter.default.observe(NSWindow.didBecomeMainNotification, object: self) { _ in handler(true) }, NotificationCenter.default.observe(NSWindow.didResignMainNotification, object: self) { _ in handler(false) }].notificationToken!
@@ -130,6 +130,8 @@ extension NSWindow {
         public var isFullScreen: ((Bool)->())?
         /// The handler that gets called when the style mask changes.
         public var styleMask: ((StyleMask)->())?
+        /// The handler that gets called when the window’s active space state changes.
+        public var isOnActiveSpace: ((Bool)->())?
         
         /// The tab handlers for the window.
         public var tab: TabHandlers = TabHandlers()
@@ -153,8 +155,14 @@ extension NSWindow {
     public var handlers: Handlers {
         get { getAssociatedValue("windowHandlers", initialValue: Handlers()) }
         set {
+            let needsSpaceUpdate = (handlers.isOnActiveSpace == nil && newValue.isOnActiveSpace != nil) || (handlers.isOnActiveSpace != nil && newValue.isOnActiveSpace == nil)
             setAssociatedValue(newValue, key: "windowHandlers")
             setupLiveResizeObservation()
+            
+            if needsSpaceUpdate {
+                _isOnActiveSpace = isOnActiveSpace
+                NSWindow.updateSpaceObservation(shouldObserve: newValue.isOnActiveSpace != nil)
+            }
             
             func observe<Value: Equatable>(_ keyPath: KeyPath<NSWindow, Value>, handler: KeyPath<NSWindow, ((Value)->())?>) {
                 if self[keyPath: handler] == nil {
@@ -224,6 +232,33 @@ extension NSWindow {
                 isMainObservation = nil
             }
         }
+    }
+    
+    var _isOnActiveSpace: Bool {
+        get { getAssociatedValue("isOnActiveSpace", initialValue: isOnActiveSpace) }
+        set { setAssociatedValue(newValue, key: "isOnActiveSpace") }
+    }
+    
+    func sendOnActiveSpace() {
+        guard let handler = handlers.isOnActiveSpace, _isOnActiveSpace != isOnActiveSpace else { return  }
+        _isOnActiveSpace = !_isOnActiveSpace
+        handler(_isOnActiveSpace)
+    }
+    
+    static func updateSpaceObservation(shouldObserve: Bool) {
+        if !shouldObserve && !NSApp.windows.contains(where: { $0.handlers.isOnActiveSpace != nil }) {
+            activeSpaceObservation = nil
+        } else if activeSpaceObservation == nil {
+            activeSpaceObservation = NotificationCenter.default.observe(NSWorkspace.activeSpaceDidChangeNotification) { _ in
+                NSApp.windows.forEach({ $0.sendOnActiveSpace() })
+            }
+        }
+        Swift.print("CHECK", activeSpaceObservation != nil)
+    }
+    
+   static var activeSpaceObservation: NotificationToken? {
+        get { getAssociatedValue("activeSpaceObservation") }
+        set { setAssociatedValue(newValue, key: "activeSpaceObservation") }
     }
     
     /// Sets the minimum size to which the window’s frame (including its title bar) can be sized.
