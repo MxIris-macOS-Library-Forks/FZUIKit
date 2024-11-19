@@ -172,8 +172,8 @@ import FZSwiftUtils
 
          You can set the value of this property to a path you built using the functions of the Core Graphics framework. When setting a new path, this method makes a copy of the path you provide.
          */
-        @available(macOS, obsoleted: 14)
-        var cgpath: CGPath {
+        @available(macOS, introduced: 10.10, obsoleted: 14.0)
+        var cgPath: CGPath {
             let path = CGMutablePath()
             var points = [CGPoint](repeating: .zero, count: 3)
             for i in 0 ..< elementCount {

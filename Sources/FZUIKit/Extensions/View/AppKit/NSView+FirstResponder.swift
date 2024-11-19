@@ -57,13 +57,17 @@ public extension NSViewProtocol where Self: NSView {
 }
 
 extension NSView {
-    /// A value that indicates the amout of mouse clicks outside the view to resign the view as first responder in its window.
-    public var resignFirstResponderClickCount: Int? {
-        get { getAssociatedValue("resignFirstResponderClickCount") }
+    /**
+     A value that indicates the amount of mouse clicks outside the view to resign the view as first responder in its window.
+     
+     Tne default value is `0` and indicates that a mouse click outside the view isn't resigning the view as first responder in its window.
+     */
+    public var firstResponderResignClickCount: Int {
+        get { getAssociatedValue("firstResponderResignClickCount") ?? 0 }
         set {
-            guard newValue != resignFirstResponderClickCount, newValue ?? -1 > 0 else { return }
-            setAssociatedValue(newValue, key: "resignFirstResponderClickCount")
-            if newValue != nil {
+            guard newValue != firstResponderResignClickCount else { return }
+            setAssociatedValue(newValue, key: "firstResponderResignClickCount")
+            if newValue > 0 {
                 resignFirstResponderObservation = observeChanges(for: \.window?.firstResponder) { [weak self] old, new in
                     guard let self = self, old != new else { return }
                     self.setupResignMouseDownMonitor()
@@ -75,14 +79,14 @@ extension NSView {
             }
         }
     }
-
+    
     func setupResignMouseDownMonitor() {
         if isFirstResponder {
             guard resignMouseDownMonitor == nil else { return }
             resignMouseDownMonitor = NSEvent.localMonitor(for: .leftMouseDown) { [weak self] event in
-                guard let self = self, let clickCount = self.resignFirstResponderClickCount else { return event }
+                guard let self = self else { return event }
                 let location = event.location(in: self)
-                if self.isFirstResponder, !self.bounds.contains(location), event.clickCount >= clickCount {
+                if self.isFirstResponder, !self.bounds.contains(location), event.clickCount >= self.firstResponderResignClickCount {
                     self.resignFirstResponding()
                 }
                 return event

@@ -46,37 +46,35 @@ extension NSTextField {
         return self
     }
     
-    /// The direction the textfield's height expands when automatic resizing is enabled and `preferredMaxLayoutWidth` is reached.
-    public enum ResizingDirection {
-        /// The textfield's height expands to the top.
-        case top
-        /// The textfield's height expands to the bottom.
-        case bottom
+    /**
+     The edges the textfield's size expands when automatic resizing is enabled.
+     
+     The default value is `[.bottom , .right]`
+     */
+    public var preferredResizingEdges: RectEdge {
+        get { getAssociatedValue("preferredResizingEdges", initialValue: [.bottom, .right]) }
+        set { setAssociatedValue(newValue, key: "preferredResizingEdges") }
     }
     
-    /// The direction the textfield's height expands when automatic resizing is enabled and `preferredMaxLayoutWidth` is reached.
-    public var preferredResizingDirection: ResizingDirection {
-        get { getAssociatedValue("resizingDirection", initialValue: .top) }
-        set { setAssociatedValue(newValue, key: "resizingDirection") }
-    }
-    
-    /// Sets the direction the textfield's height expands when automatic resizing is enabled and `preferredMaxLayoutWidth` is reached.
+    /// Sets edges the textfield's size expands when automatic resizing is enabled.
     @discardableResult
-    public func preferredResizingDirection(_ direction: ResizingDirection) -> Self {
-        preferredResizingDirection = direction
+    public func preferredResizingEdges(_ edges: RectEdge) -> Self {
+        preferredResizingEdges = edges
         return self
     }
     
     /**
      The preferred minimum width of the text field.
      
-     Apply ``placeholderWidth`` to this property, to use the placeholder width as minimum value.
+     The default value is ``AppKit/NSTextField/automaticWidth``. It uses the placeholder width as minimum width, if the string value is empty.
+
+     To always use the placeholder width as minimum width, specify the constant ``AppKit/NSTextField/placeholderWidth``.
      */
     @objc open var preferredMinLayoutWidth: CGFloat {
-        get { getAssociatedValue("preferredMinLayoutWidth", initialValue: 0) }
+        get { getAssociatedValue("preferredMinLayoutWidth") ?? NSTextField.automaticWidth }
         set {
-            setAssociatedValue(newValue, key: "preferredMinLayoutWidth")
             swizzleIntrinsicContentSize()
+            setAssociatedValue(newValue, key: "preferredMinLayoutWidth")
             resizeToFit()
         }
     }
@@ -84,7 +82,9 @@ extension NSTextField {
     /**
      Sets the preferred minimum width of the text field.
      
-     Use ``placeholderWidth`` to use the placeholder width as minimum value.
+     The default value is ``AppKit/NSTextField/automaticWidth``. It uses the placeholder width as minimum value, if the string value of the text field is empty.
+     
+     To always use the placeholder width as minimum value, specify the constant ``AppKit/NSTextField/placeholderWidth``.
      */
     @discardableResult
     @objc open func preferredMinLayoutWidth(_ minWidth: CGFloat) -> Self {
@@ -92,8 +92,11 @@ extension NSTextField {
         return self
     }
     
-    /// A value that tells the layout system to constraint the preferred minimum width to the width of the placeholder string. (see ``preferredMinLayoutWidth``).
+    /// A value that tells the layout system to constraint the preferred minimum width to the width of the placeholder string (see ``AppKit/NSTextField/preferredMinLayoutWidth``).
     public static let placeholderWidth: CGFloat = -1
+    
+    /// A value that tells the layout system to constraint the preferred minimum width to the width of the placeholder string, if the string value of the text field is empty (see ``AppKit/NSTextField/preferredMinLayoutWidth``).
+    public static let automaticWidth: CGFloat = -2
     
     /// A value that tells the layout system to constraint the preferred maximum width to the width of the superview (see `preferredMaxLayoutWidth`).
     public static let superviewWidth: CGFloat = -1
@@ -103,9 +106,19 @@ extension NSTextField {
         if translatesAutoresizingMaskIntoConstraints {
             var newFrame = frame
             newFrame.size = calculatedFittingSize
-            if preferredResizingDirection == .bottom {
+            if preferredResizingEdges.contains([.bottom, .top]) {
+                let diff = newFrame.height - frame.height
+                newFrame.origin.y -= diff / 2.0
+            } else if preferredResizingEdges.contains(.bottom) {
                 let diff = newFrame.height - frame.height
                 newFrame.origin.y -= diff
+            }
+            if preferredResizingEdges.contains([.left, .right]) {
+                let diff = newFrame.width - frame.width
+                newFrame.origin.x -= diff / 2.0
+            } else if preferredResizingEdges.contains(.left) {
+                let diff = newFrame.width - frame.width
+                newFrame.origin.x -= diff
             }
             frame = newFrame
         } else {
@@ -123,14 +136,8 @@ extension NSTextField {
                     methodSignature: (@convention(c)  (AnyObject, Selector) -> (CGSize)).self,
                     hookSignature: (@convention(block)  (AnyObject) -> (CGSize)).self) { store in {
                         object in
-                        if let textField = object as? NSTextField, (textField.automaticallyResizesToFit || textField.preferredMinLayoutWidth != 0.0) {
-                            let size = textField.frame.size
+                        if let textField = object as? NSTextField, (textField.automaticallyResizesToFit || textField.preferredMinLayoutWidth != .zero) {
                             let newSize = textField.calculatedFittingSize
-                            if textField.preferredResizingDirection == .bottom {
-                                let diff = newSize.height - size.height
-                                Swift.print(textField.frame.origin.y)
-                                textField.frame.origin.y -= diff
-                            }
                             return newSize
                         }
                         return store.original(object, #selector(getter: NSTextField.intrinsicContentSize))
@@ -146,32 +153,54 @@ extension NSTextField {
             setupTextFieldObserver()
         }
     }
+    
+    func withoutPlaceholder(_ without: Bool, handler: @escaping ()->()) {
+        if without, let cell = cell as? NSTextFieldCell, placeholderAttributedString != nil || placeholderString != nil {
+            if let placeholder = placeholderAttributedString {
+                cell.placeholderAttributedString = nil
+                handler()
+                cell.placeholderAttributedString = placeholder
+            } else if let placeholder = placeholderString {
+                cell.placeholderString = nil
+                handler()
+                cell.placeholderString = placeholder
+            }
+        } else {
+            handler()
+        }
+    }
 
     var calculatedFittingSize: CGSize {
         guard cell != nil else { return frame.size }
-        var cellSize = sizeThatFits(width: maxLayoutWidth)
-      //  return cell?.cellSize(forBounds: NSRect(x: 0, y: 0, width: 100000, height: 1000)) ?? .zero
-        
-        cellSize.height.round(toMultiple: 0.5, rule: .awayFromZero)
+        var cellSize: CGSize = .zero
+        withoutPlaceholder(preferredMinLayoutWidth != NSTextField.automaticWidth) {
+            cellSize = self.sizeThatFits(width: self.maxLayoutWidth)
+        }        
         if preferredMinLayoutWidth == Self.placeholderWidth {
-            let placeholderSize = placeholderStringSize
-            cellSize.width = max(placeholderSize.width, cellSize.width)
-            cellSize.width.round(toMultiple: 0.5, rule: .awayFromZero)
-        } else {
-            cellSize.width.round(toMultiple: 0.5, rule: .awayFromZero)
-         //   cellSize.width = max(cellSize.width, maxLayoutWidth)
+            cellSize.width = max((placeholderStringSize.width + 1.0).clamped(max: maxLayoutWidth), cellSize.width)
+        } else if preferredMinLayoutWidth > 0.0 {
+            cellSize.width = max(preferredMinLayoutWidth.clamped(max: maxLayoutWidth), cellSize.width)
         }
+        cellSize.width.round(toMultiple: 0.5, rule: .awayFromZero)
+        cellSize.height.round(toMultiple: 0.5, rule: .awayFromZero)
+        // Swift.print("calculatedFittingSize", cellSize)
         return cellSize
     }
         
     var placeholderStringSize: CGSize {
-        guard cell != nil else { return .zero }
-        if let placeholder = placeholderAttributedString {
+        if let placeholder = placeholderString {
             return fittingSize(for: placeholder, maxWidth: maxLayoutWidth)
-        } else if let placeholder = placeholderString {
+        } else if let placeholder = placeholderAttributedString {
             return fittingSize(for: placeholder, maxWidth: maxLayoutWidth)
         }
         return .zero
+        /*
+        let attributedStringValue = attributedStringValue
+        cell.stringValue = ""
+        let size = self.sizeThatFits(width: self.maxLayoutWidth)
+        cell.attributedStringValue = attributedStringValue
+        return size
+         */
     }
     
     var maxLayoutWidth: CGFloat {
@@ -190,6 +219,7 @@ extension NSTextField {
         cell.stringValue = stringValue
         return size
     }
+    
     
     func fittingSize(for attributedString: NSAttributedString, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil) -> CGSize {
         guard let cell = cell else { return .zero }
