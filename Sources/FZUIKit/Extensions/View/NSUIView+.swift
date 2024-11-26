@@ -469,34 +469,39 @@
             return self
         }
         
+        #if os(macOS)
+        /// Sets the anchor point of the view’s bounds rectangle.
+        @discardableResult
+        @objc open func anchorPoint(_ anchorPoint: FractionalPoint) -> Self {
+            self.anchorPoint = anchorPoint
+            return self
+        }
+        #else
         /// Sets the anchor point of the view’s bounds rectangle.
         @discardableResult
         @objc open func anchorPoint(_ anchorPoint: CGPoint) -> Self {
-            #if os(macOS)
             self.anchorPoint = anchorPoint
-            #else
-            self.layer.anchorPoint = anchorPoint
-            #endif
             return self
         }
+        #endif
         
         /// Sets the scale transform of the view.
         @discardableResult
-        @objc open func scale(_ scale: CGPoint) -> Self {
+        @objc open func scale(_ scale: Scale) -> Self {
             self.scale = scale
             return self
         }
         
         /// Sets the rotation of the view as euler angles in degrees.
         @discardableResult
-        @objc open func rotation(_ rotation: CGVector3) -> Self {
+        @objc open func rotation(_ rotation: Rotation) -> Self {
             self.rotation = rotation
             return self
         }
         
         /// Sets the rotation of the view as euler angles in radians.
         @discardableResult
-        @objc open func rotationInRadians(_ rotation: CGVector3) -> Self {
+        @objc open func rotationInRadians(_ rotation: Rotation) -> Self {
             self.rotationInRadians = rotation
             return self
         }
