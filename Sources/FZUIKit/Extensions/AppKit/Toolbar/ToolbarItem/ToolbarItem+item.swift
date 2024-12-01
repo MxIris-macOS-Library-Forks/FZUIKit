@@ -24,7 +24,7 @@
             
             /// Sets the title of the item.
             @discardableResult
-            public func title(_ title: String) -> Self {
+            @objc open func title(_ title: String) -> Self {
                 item.title = title
                 return self
             }
@@ -37,7 +37,7 @@
 
             /// Sets the image of the item, or `nil` if none.
             @discardableResult
-            public func image(_ image: NSImage?) -> Self {
+            @objc open func image(_ image: NSImage?) -> Self {
                 item.image = image
                 return self
             }
@@ -50,7 +50,7 @@
 
             /// Sets the Boolean value that indicates whether the toolbar item has a bordered style.
             @discardableResult
-            public func bordered(_ isBordered: Bool) -> Self {
+            @objc open func bordered(_ isBordered: Bool) -> Self {
                 item.isBordered = isBordered
                 return self
             }
@@ -65,13 +65,13 @@
             /// Sets the Boolean value that indicates whether the toolbar item behaves as a navigation item in the toolbar.
             @available(macOS 11.0, *)
             @discardableResult
-            public func isNavigational(_ isNavigational: Bool) -> Self {
+            @objc open func isNavigational(_ isNavigational: Bool) -> Self {
                 item.isNavigational = isNavigational
                 return self
             }
             
-            /// The action block of the item.
-            public var actionBlock: ((Item)->())? {
+            /// The handler that gets called when the user clicks the item.
+            public var actionBlock: ((_ item: Item)->())? {
                 didSet {
                     if let actionBlock = actionBlock {
                         item.actionBlock = { _ in
@@ -83,9 +83,9 @@
                 }
             }
 
-            /// Sets the action block of the item.
+            /// Sets the handler that gets called when the user clicks the item.
             @discardableResult
-            public func onAction(_ action: ((Item)->())?) -> Self {
+            @objc open func onAction(_ action: ((_ item: Item)->())?) -> Self {
                 actionBlock = action
                 return self
             }

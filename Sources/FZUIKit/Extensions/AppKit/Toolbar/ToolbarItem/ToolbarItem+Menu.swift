@@ -7,7 +7,6 @@
 
 #if os(macOS)
     import AppKit
-    import SwiftUI
 
     public extension ToolbarItem {
         /**
@@ -16,9 +15,43 @@
          The item can be used with ``Toolbar``.
          */
         class Menu: ToolbarItem {
-            lazy var menuItem: NSMenuToolbarItem = .init(identifier)
+            
+            lazy var menuItem = NSMenuToolbarItem(identifier)
             override var item: NSToolbarItem {
                 menuItem
+            }
+            
+            /// The title of the item.
+            public var title: String {
+                get { menuItem.title }
+                set { menuItem.title = newValue }
+            }
+            
+            /// Sets the title of the item.
+            @discardableResult
+            public func title(_ title: String) -> Self {
+                menuItem.title = title
+                return self
+            }
+            
+            /// The image of the item.
+            public var image: NSImage? {
+                get { menuItem.image }
+                set { menuItem.image = newValue }
+            }
+            
+            /// Sets the image of the item.
+            @discardableResult
+            public func image(_ image: NSImage?) -> Self {
+                menuItem.image = image
+                return self
+            }
+            
+            /// Sets the image of the item.
+            @available(macOS 11.0, *)
+            public func image(symbolName: String) -> Self {
+                menuItem.image = NSImage(systemSymbolName: symbolName)
+                return self
             }
 
             /// Sets the Boolean value that determines whether the toolbar item displays an indicator of additional functionality.
@@ -52,17 +85,30 @@
                 menuItem.menu = NSMenu(items: items())
                 return self
             }
-
-            /**
-             Creates a menu toolbar item.
-
-             - Parameters:
-                - identifier: An optional identifier of the item.
-                - menu: The menu.
-             */
-            public init(_ identifier: NSToolbarItem.Identifier? = nil, menu: NSMenu) {
-                super.init(identifier)
-                menuItem.menu = menu
+            
+            /// The object that defines the action method the item calls when clicked.
+            public var target: AnyObject? {
+                get { item.target }
+                set { item.target = newValue }
+            }
+            
+            /// The action method to call when someone clicks on the item.
+            public var action: Selector? {
+                get { item.action }
+                set { item.action = newValue }
+            }
+            
+            /// Sets the handler that gets called when the user clicks the item.
+            @discardableResult
+            public func onAction(_ action: ((_ item: ToolbarItem.Menu)->())?) -> Self {
+                if let action = action {
+                    item.actionBlock = { _ in
+                        action(self)
+                    }
+                } else {
+                    item.actionBlock = nil
+                }
+                return self
             }
 
             /**
@@ -70,10 +116,28 @@
 
              - Parameters:
                 - identifier: An optional identifier of the item.
+                - title: The title of the item.
+                - image: The image of the item.
+                - menu: The menu.
+             */
+            public init(_ identifier: NSToolbarItem.Identifier? = nil, title: String? = nil, image: NSImage? = nil, menu: NSMenu) {
+                super.init(identifier)
+                menuItem.menu = menu
+                self.title = title ?? ""
+                self.image = image
+            }
+
+            /**
+             Creates a menu toolbar item.
+
+             - Parameters:
+                - identifier: An optional identifier of the item.
+                - title: The title of the item.
+                - image: The image of the item.
                 - items: The menu items of the menu.
              */
-            public convenience init(_ identifier: NSToolbarItem.Identifier? = nil, @MenuBuilder _ items: () -> [NSMenuItem]) {
-                self.init(identifier, menu: NSMenu(items: items()))
+            public convenience init(_ identifier: NSToolbarItem.Identifier? = nil, title: String? = nil, image: NSImage? = nil, @MenuBuilder _ items: () -> [NSMenuItem]) {
+                self.init(identifier, title: title, image: image, menu: NSMenu(items: items()))
             }
         }
     }

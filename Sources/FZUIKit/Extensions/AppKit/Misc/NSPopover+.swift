@@ -69,6 +69,7 @@ import SwiftUI
         public convenience init(viewController: NSViewController) {
             self.init()
             self.contentViewController = viewController
+            contentSize = viewController.view.bounds.size
         }
         
         /// Sets the behavior of the popover.
@@ -133,7 +134,7 @@ import SwiftUI
                 if let view = newValue {
                     let viewController = NSViewController()
                     viewController.view = view
-                    contentViewController = viewController
+                    contentViewController = NSViewController()
                     contentSize = view.bounds.size
                 } else {
                     contentViewController = nil
@@ -315,7 +316,7 @@ import SwiftUI
             let spacing: CGFloat = 0.0
             let tracking: ViewTracking = .disabled
             dismiss()
-            if hideArrow == false {
+            if !hideArrow {
                 show(relativeTo: positioningRect, of: positioningView, preferredEdge: preferredEdge)
             } else {
                 let noArrowView = NSView(frame: positioningView.frame)
@@ -489,32 +490,6 @@ import SwiftUI
             if handlers.needsSwizzle || hidesDetachedCloseButton || isDetachable {
                 guard popoverDelegate == nil else { return }
                 popoverDelegate = Delegate(popover: self)
-                do {
-                    try replaceMethod(
-                        #selector(getter: delegate),
-                        methodSignature: (@convention(c) (AnyObject, Selector) -> (NSPopoverDelegate?)).self,
-                        hookSignature: (@convention(block) (AnyObject) -> (NSPopoverDelegate?)).self
-                    ) { _ in { object in
-                        (object as? NSPopover)?.popoverDelegate?.delegate
-                    }
-                    }
-                    
-                    try replaceMethod(
-                        #selector(setter: delegate),
-                        methodSignature: (@convention(c) (AnyObject, Selector, NSPopoverDelegate?) -> Void).self,
-                        hookSignature: (@convention(block) (AnyObject, NSPopoverDelegate?) -> Void).self
-                    ) { _ in { object, delegate in
-                        (object as? NSPopover)?.popoverDelegate?.delegate = delegate
-                    }
-                    }
-                } catch {
-                    Swift.debugPrint()
-                }
-            } else if popoverDelegate != nil {
-                resetMethod(#selector(getter: delegate))
-                resetMethod(#selector(setter: delegate))
-                delegate = popoverDelegate?.delegate
-                popoverDelegate = nil
             }
         }
 
@@ -560,7 +535,7 @@ import SwiftUI
             }
 
             func popoverShouldDetach(_ popover: NSPopover) -> Bool {
-                popover.handlers.shouldDetach?() ?? delegate?.popoverShouldDetach?(popover) ?? popover.isDetachable
+                return popover.handlers.shouldDetach?() ?? delegate?.popoverShouldDetach?(popover) ?? popover.isDetachable
             }
 
             func popoverDidDetach(_ popover: NSPopover) {
