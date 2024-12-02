@@ -16,7 +16,6 @@
          The item can be used with ``Toolbar``.
          */
         class Search: ToolbarItem, NSSearchFieldDelegate, NSTextFieldDelegate {
-            typealias SearchHandler = (String, SearchState) -> Void
 
             lazy var searchItem = NSSearchToolbarItem(identifier)
             override var item: NSToolbarItem {
@@ -33,22 +32,22 @@
                 case didEnd
             }
 
-            var searchHandler: SearchHandler?
+            var searchHandler: ((_ stringValue: String, _ state: SearchState) -> Void)?
 
-            /// The action handler getting called when the search string value changes.
+            /// Sets the handler that gets called when the user changes the string of the search field.
             @discardableResult
-            public func onSearch(_ action: @escaping ((_ stringValue: String, _ state: SearchState) -> Void)) -> Self {
+            public func onSearch(_ action: ((_ stringValue: String, _ state: SearchState) -> Void)?) -> Self {
                 searchHandler = action
                 return self
             }
 
             /// The search field of the toolbar item.
-            public var searchField: NSSearchField {
+            public internal(set) var searchField: NSSearchField {
                 get { searchItem.searchField }
                 set {
                     guard newValue != searchField else { return }
                     searchItem.searchField = newValue
-                    setupSearchField()
+                    searchField.delegate = self
                 }
             }
 
@@ -83,40 +82,89 @@
                 placeholderAttributedString = placeholder
                 return self
             }
-
-            /*
-            /// Sets the action to perform when the user pressed the enter key.
+            
+            /// Sets the preferred width for the toolbar item when it has keyboard focus.
+            @discardableResult
+            public func preferredWidthForSearchField(_ preferredWidth: CGFloat) -> Self {
+                searchItem.preferredWidthForSearchField = preferredWidth
+                return self
+            }
+            
+            var editingActionSearhField: EditingActionSearchField? {
+                searchItem.searchField as? EditingActionSearchField
+            }
+            
+            /// The action to perform when the user pressed the enter key while searching.
+            public var editingActionOnEnterKeyDown: NSTextField.EnterKeyAction {
+                get { editingActionSearhField?._editingActionOnEnterKeyDown ?? .none }
+                set { editingActionSearhField?._editingActionOnEnterKeyDown = newValue }
+            }
+            
+            /// Sets the action to perform when the user pressed the enter key while searching.
             @discardableResult
             public func editingActionOnEnterKeyDown(_ enterAction: NSTextField.EnterKeyAction) -> Self {
-                searchItem.searchField.editingActionOnEnterKeyDown = enterAction
+                editingActionOnEnterKeyDown = enterAction
                 return self
             }
-
-            /// Sets the action to perform when the user pressed the escape key.
+            
+            /// The action to perform when the user pressed the escape key while searching.
+            public var editingActionOnEscapeKeyDown: NSTextField.EscapeKeyAction {
+                get { editingActionSearhField?._editingActionOnEscapeKeyDown ?? .none }
+                set { editingActionSearhField?._editingActionOnEscapeKeyDown = newValue }
+            }
+            
+            /// Sets the action to perform when the user pressed the escape key while searching.
             @discardableResult
             public func editingActionOnEscapeKeyDown(_ escapeAction: NSTextField.EscapeKeyAction) -> Self {
-                searchItem.searchField.editingActionOnEscapeKeyDown = escapeAction
+                editingActionOnEscapeKeyDown = escapeAction
                 return self
             }
-            */
-
+            
+            /**
+             Starts a search interaction and moves the keyboard focus to the search field.
+             
+             If the system displays a compressed search field, starting the search interaction expands the field to the width stored in the `preferredWidthForSearchField` property and moves the keyboard focus into the search field. Use ``beginSearchInteraction()`` and ``endSearchInteraction()`` to programmatically control a search.
+             */
+            public func beginSearchInteraction() {
+                searchItem.beginSearchInteraction()
+            }
+            
+            /**
+             Ends a search interaction by giving up the first responder and adjusting the size of the search field to the available width for the toolbar item if necessary.
+             
+             Use ``beginSearchInteraction()`` and endSearchInteraction() to programmatically control a search.
+             */
+            public func endSearchInteraction() {
+                searchItem.endSearchInteraction()
+            }
+            
+            /// Sets the preferred width of the search field item, or `nil` to automatically adjust the width.
+            public func preferredWidth(_ preferredWidth: CGFloat?) -> Self {
+                self.preferredWidth = preferredWidth
+                return self
+            }
+            
+            var preferredWidth: CGFloat? {
+                get { searchFieldConstraints.first?.constant }
+                set {
+                    searchFieldConstraints.activate(false)
+                    searchFieldConstraints = []
+                    if let newValue = newValue {
+                        searchFieldConstraints = [searchField.widthAnchor.constraint(lessThanOrEqualToConstant: newValue),
+                                                  searchField.widthAnchor.constraint(greaterThanOrEqualToConstant: 40)].activate()
+                    }
+                }
+            }
+            
+            var searchFieldConstraints: [NSLayoutConstraint] = []
+      
             public init(_ identifier: NSToolbarItem.Identifier? = nil, maxWidth: CGFloat) {
                 super.init(identifier)
-                searchField.actionBlock = { [weak self] _ in
-                    guard let self = self else { return }
-                    self.item.actionBlock?(self.item)
-                }
+                searchItem.searchField = EditingActionSearchField()
                 searchField.delegate = self
                 searchField.translatesAutoresizingMaskIntoConstraints = false
-                searchField.widthAnchor.constraint(lessThanOrEqualToConstant: maxWidth).isActive = true
-            }
-
-            func setupSearchField() {
-                searchField.actionBlock = { [weak self] _ in
-                    guard let self = self else { return }
-                    self.item.actionBlock?(self.item)
-                }
-                searchField.delegate = self
+                [searchField.widthAnchor.constraint(lessThanOrEqualToConstant: maxWidth),
+                 searchField.widthAnchor.constraint(greaterThanOrEqualToConstant: 40)].activate()
             }
 
             /**
@@ -129,8 +177,8 @@
             public init(_ identifier: NSToolbarItem.Identifier? = nil, searchField: NSSearchField) {
                 super.init(identifier)
                 searchField.translatesAutoresizingMaskIntoConstraints = false
-                self.searchField = searchField
-                setupSearchField()
+                searchItem.searchField = searchField
+                searchField.delegate = self
             }
 
             /**
@@ -141,16 +189,22 @@
              */
             override public init(_ identifier: NSToolbarItem.Identifier? = nil) {
                 super.init(identifier)
-                setupSearchField()
+                searchItem.searchField = EditingActionSearchField()
+                searchField.delegate = self
             }
 
             public func searchFieldDidStartSearching(_: NSSearchField) {
-                //    searchState = .isStarted
                 searchHandler?(stringValue, .didStart)
+                startingStringValue = searchField.stringValue
             }
 
             public func searchFieldDidEndSearching(_: NSSearchField) {
                 searchHandler?(stringValue, .didEnd)
+            }
+            
+            var startingStringValue: String?
+            public func controlTextDidBeginEditing(_ obj: Notification) {
+                startingStringValue = searchField.stringValue
             }
 
             public func controlTextDidChange(_: Notification) {
@@ -158,5 +212,47 @@
             }
         }
     }
+
+class EditingActionSearchField: NSSearchField, NSTextViewDelegate {
+    var _editingActionOnEnterKeyDown: NSTextField.EnterKeyAction = .endEditing
+    var _editingActionOnEscapeKeyDown: NSTextField.EscapeKeyAction = .endEditing
+    
+    init() {
+        super.init(frame: .zero)
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+    
+    var startingString: String?
+    override func textDidBeginEditing(_ notification: Notification) {
+        startingString = stringValue
+    }
+    
+    func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        switch commandSelector {
+        case #selector(NSControl.cancelOperation(_:)):
+            if _editingActionOnEscapeKeyDown == .endEditingAndReset {
+                stringValue = startingString ?? stringValue
+                startingString = nil
+                resignFirstResponding()
+                return true
+            } else if _editingActionOnEscapeKeyDown == .endEditing {
+                startingString = nil
+                resignFirstResponding()
+                return true
+            }
+        case #selector(NSControl.insertNewline(_:)):
+            if _editingActionOnEnterKeyDown == .endEditing {
+                startingString = nil
+                resignFirstResponding()
+                return true
+            }
+        default: break
+        }
+        return false
+    }
+}
 
 #endif

@@ -25,6 +25,16 @@
         /// A Boolean value that indicates whether the item displays in the center of the toolbar.
         open var isCentered = false
         
+        var _label: String = "" {
+            didSet {
+                guard oldValue != _label else { return }
+                item.label = _label
+                if _label == "", let item = self as? ToolbarItem.Segmented, !item.groupItem.subitems.isEmpty {
+                    item.updateSegments()
+                }
+            }
+        }
+        
         open var isHidden = false {
             didSet {
                 guard let toolbar = toolbar else { return }
@@ -73,17 +83,18 @@
 
         /// The toolbar that currently includes the item.
         var toolbar: Toolbar? { item.toolbar?.delegate as? Toolbar }
+        
 
         /// The label that appears for this item in the toolbar.
         public var label: String {
-            get { item.label }
-            set { item.label = newValue }
+            get { _label }
+            set { _label = newValue }
         }
         
         /// Sets the label that appears for this item in the toolbar.
         @discardableResult
         @objc open func label(_ label: String?) -> Self {
-            item.label = label ?? ""
+            _label = label ?? ""
             return self
         }
         

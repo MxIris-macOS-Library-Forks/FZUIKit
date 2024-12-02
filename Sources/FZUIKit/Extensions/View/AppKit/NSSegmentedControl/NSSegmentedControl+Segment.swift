@@ -10,8 +10,9 @@
     import AppKit
 
     /// A segment of a `NSSegmentedControl`.
-    public class NSSegment: ExpressibleByStringLiteral {
+    public class NSSegment: NSObject, ExpressibleByStringLiteral {
         weak var segmentedControl: NSSegmentedControl?
+        weak var segmentedToolbarItem: ToolbarItem.Segmented?
 
         /// The title of the segment.
         public var title: String? {
@@ -66,6 +67,7 @@
         public var isEnabled: Bool = true {
             didSet { if let index = index {
                 segmentedControl?.setEnabled(isEnabled, forSegment: index)
+                segmentedToolbarItem?.isEnabledUpdated(for: self)
             } }
         }
 
