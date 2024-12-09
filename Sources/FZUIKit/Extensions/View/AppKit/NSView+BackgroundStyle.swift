@@ -77,4 +77,24 @@ extension NSImageView {
     }
 }
 
+class BackgroundStyleObserverView: NSControl {
+    var handler: ((BackgroundStyle) -> ())?
+    override class var cellClass: AnyClass? {
+        get { Cell.self }
+        set { }
+    }
+    
+    class Cell: NSCell {
+        override var backgroundStyle: NSView.BackgroundStyle {
+            get { super.backgroundStyle }
+            set {
+                let backgroundStyleChanged = backgroundStyle != newValue
+                super.backgroundStyle = newValue
+                guard backgroundStyleChanged else { return }
+                (controlView as? BackgroundStyleObserverView)?.handler?(newValue)
+            }
+        }
+    }
+}
+
 #endif
