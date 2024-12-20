@@ -11,81 +11,195 @@
     import FZSwiftUtils
 import Combine
 
-    extension NSCursor {
-        /**
-         Returns the resize-diagonal system cursor (from north-west to south-east).
-         
-         Use this cursor for resizing of a bottom right or top left corner.
-         */
-        public static var resizeDiagonal: NSCursor? {
-            if let url = Bundle.module.url(forResource: "resizenorthwestsoutheast", withExtension: "pdf"), let image = NSImage(contentsOf: url) {
-                return NSCursor(image: image, hotSpot: NSCursor.arrow.hotSpot)
-            }
-            return nil
-        }
-        
-        /*
-        /// Returns the resize-bottom--right system cursor.
-        public static var resizeNorthWestSouthEast: NSCursor {
-            let url = Bundle.module.url(forResource: "resizenorthwestsoutheast", withExtension: "pdf")!
-            let image = NSImage(contentsOf: url)!
-            return NSCursor(image: image, hotSpot: NSCursor.arrow.hotSpot)
-        }
-        */
-        
-        /// Returns the resize-bottom--right system cursor.
-        public static var resizeBottomRight: NSCursor {
-            let url = Bundle.module.url(forResource: "resizenorthwestsoutheast", withExtension: "pdf")!
-            let image = NSImage(contentsOf: url)!
-            return NSCursor(image: image, hotSpot: NSCursor.arrow.hotSpot)
-        }
-        
-        /// Returns the resize-top--left system cursor.
-        public static var resizeTopLeft: NSCursor {
-            let url = Bundle.module.url(forResource: "resizenorthwestsoutheast", withExtension: "pdf")!
-            let image = NSImage(contentsOf: url)!
-            return NSCursor(image: image, hotSpot: NSCursor.arrow.hotSpot)
-        }
+fileprivate extension NSCursor {
+    convenience init(named name: String) {
+        let imageURL = Bundle.module.url(forResource: name, withExtension: "pdf")!
+        let plistURL = Bundle.module.url(forResource: name, withExtension: "plist")!
 
-        /**
-         Returns the resize-diagonal-alernative system cursor (from north-east to south-west).
-         
-         Use this cursor for resizing of a bottom left or top right corner.
-         */
-        public static var resizeDiagonalAlt: NSCursor? {
-            if let url = Bundle.module.url(forResource: "resizenortheastsouthwest", withExtension: "pdf"), let image = NSImage(contentsOf: url) {
-                return NSCursor(image: image, hotSpot: NSCursor.arrow.hotSpot)
-            }
-            return nil
+        let info = try! CursorInfo(url: Bundle.module.url(forResource: name, withExtension: "plist")!)
+        var image = NSImage(contentsOf: Bundle.module.url(forResource: name, withExtension: "pdf")!)!
+        if let frames = info.frames, frames > 0 {
+            var frameImages = image.splitToTiles(horizontalCount: 1, verticalCount: frames)
+            frameImages = frameImages.compactMap({$0.retinaScaled})
+            frameImages = frameImages.compactMap({ $0.withShadow(info.shadow ?? .none()) ?? $0 })
+            self.init(animated: frameImages, frameDuration: info.delay ?? 0.12, hotSpot: info.hotSpot)
+        } else {
+            image = image.retinaScaled.withShadow(info.shadow ?? .none()) ?? image
+            self.init(image: image, hotSpot: info.hotSpot)
+        }
+    }
+    
+    struct CursorInfo: Codable {
+        init(url: URL) throws {
+            self = try PropertyListDecoder().decode(CursorInfo.self, from: try Data(contentsOf: url))
         }
         
-        /// Returns the resize-top--right system cursor.
-        public static var resizeTopRight: NSCursor {
-            let url = Bundle.module.url(forResource: "resizenortheastsouthwest", withExtension: "pdf")!
-            let image = NSImage(contentsOf: url)!
-            return NSCursor(image: image, hotSpot: NSCursor.arrow.hotSpot)
+        var hotSpot: CGPoint {
+            CGPoint(hotSpotX, hotSpotY)
         }
         
-        /// Returns the resize-bottom--left system cursor.
-        public static var resizeBottomLeft: NSCursor {
-            let url = Bundle.module.url(forResource: "resizenortheastsouthwest", withExtension: "pdf")!
-            let image = NSImage(contentsOf: url)!
-            return NSCursor(image: image, hotSpot: NSCursor.arrow.hotSpot)
+        var hotSpotScaled: CGPoint {
+            CGPoint(hotSpotXScaled, hotSpotYScaled)
         }
         
-        /// Returns the resize-north-and-south system cursor.
-        public static var resizeNorthSouth: NSCursor {
-            let url = Bundle.module.url(forResource: "resizenorthsouth", withExtension: "pdf")!
-            let image = NSImage(contentsOf: url)!
-            return NSCursor(image: image, hotSpot: NSCursor.arrow.hotSpot)
+        var shadow: ShadowConfiguration? {
+            guard rendersShadow != false else { return nil }
+            let color = NSColor(red: shadowColor[safe: 0] ?? 0.0, green: shadowColor[safe: 1] ?? 0.0, blue: shadowColor[safe: 2] ?? 0.0, alpha: shadowColor[safe: 3] ?? 0.0)
+            return ShadowConfiguration(color: color, opacity: 1.0, radius: shadowBlur, offset: CGPoint(shadowOffsetX, shadowOffsetY))
         }
         
-        /// Returns the resize-east-and-west system cursor.
-        public static var resizeEastWest: NSCursor {
-            let url = Bundle.module.url(forResource: "resizeeastwest", withExtension: "pdf")!
-            let image = NSImage(contentsOf: url)!
-            return NSCursor(image: image, hotSpot: NSCursor.arrow.hotSpot)
+        private let hotSpotX: CGFloat
+        private let hotSpotY: CGFloat
+        private let hotSpotXScaled: CGFloat
+        private let hotSpotYScaled: CGFloat
+        private let rendersShadow: Bool?
+        private let shadowColor: [CGFloat]
+        private let shadowOffsetX: CGFloat
+        private let shadowOffsetY: CGFloat
+        private let shadowBlur: CGFloat
+        let delay: CGFloat?
+        let frames: Int?
+        
+        enum CodingKeys : String, CodingKey {
+            case shadowColor = "shadowcolor"
+            case rendersShadow = "rendershadow"
+            case shadowOffsetX = "shadowoffsetx"
+            case shadowOffsetY = "shadowoffsety"
+            case hotSpotXScaled = "hotx-scaled"
+            case hotSpotYScaled = "hoty-scaled"
+            case shadowBlur = "blur"
+            case hotSpotX = "hotx"
+            case hotSpotY = "hoty"
+            case delay = "delay"
+            case frames = "frames"
         }
+    }
+}
+
+extension NSCursor {
+    /**
+     Returns the resize-diagonal system cursor (from north-west to south-east).
+     
+     Use this cursor for resizing of a bottom right or top left corner.
+     */
+    public static var resizeDiagonal: NSCursor {
+        NSCursor(named: "resizenorthwestsoutheast")
+    }
+    
+    /// Returns the resize-bottom-right system cursor.
+    public static var resizeBottomRight: NSCursor {
+        resizeDiagonal
+    }
+    
+    /// Returns the resize-top-left system cursor.
+    public static var resizeTopLeft: NSCursor {
+        resizeDiagonal
+    }
+    
+    /// Returns the resize top-left corner system cursor.
+    public static var resizeTopLeftCorner: NSCursor? {
+        guard let image = NSImage(named: "NSTruthTopLeftResizeCursor") else { return nil }
+        return NSCursor(image: image, hotSpot: CGPoint(4.0, 4.0))
+    }
+    
+    /// Returns the resize top-right corner system cursor.
+    public static var resizeTopRightCorner: NSCursor? {
+        guard let image = NSImage(named: "NSTruthTopRightResizeCursor") else { return nil }
+        return NSCursor(image: image, hotSpot: CGPoint(12.0, 4.0))
+    }
+    
+    /// Returns the resize bottom-left corner system cursor.
+    public static var resizeBottomLeftCorner: NSCursor? {
+        guard let image = NSImage(named: "NSTruthBottomLeftResizeCursor") else { return nil }
+        return NSCursor(image: image, hotSpot: CGPoint(4.0, 12.0))
+    }
+    
+    /// Returns the resize bottom-right corner system cursor.
+    public static var resizeBottomRightCorner: NSCursor? {
+        guard let image = NSImage(named: "NSTruthBottomRightResizeCursor") else { return nil }
+        return NSCursor(image: image, hotSpot: CGPoint(12.0, 12.0))
+    }
+    
+    /**
+     Returns the resize-diagonal-alernative system cursor (from north-east to south-west).
+     
+     This cursor is used when moving or resizing an object and the object can be moved of a bottom-left or top-right corner.
+     Use this cursor for resizing of a bottom left or top right corner.
+     */
+    public static var resizeDiagonalAlt: NSCursor {
+        NSCursor(named: "resizenortheastsouthwest")
+    }
+    
+    /**
+     Returns the resize-top-right system cursor.
+     */
+    public static var resizeTopRight: NSCursor {
+        resizeDiagonalAlt
+    }
+    
+    /// Returns the resize-bottom-left system cursor.
+    public static var resizeBottomLeft: NSCursor {
+        resizeDiagonalAlt
+    }
+    
+    /// Returns the resize-up-and-down system cursor without center line.
+    public static var resizeUpAlt: NSCursor {
+        NSCursor(named: "resizenorth")
+    }
+    
+    /// Returns the resize-up-and-down system cursor without center line.
+    public static var resizeDownAlt: NSCursor {
+        NSCursor(named: "resizesouth")
+    }
+    
+    /// Returns the resize-up-and-down system cursor without center line.
+    public static var resizeUpDownAlt: NSCursor {
+        NSCursor(named: "resizenorthsouth")
+    }
+    
+    /// Returns the resize-left-and-right system cursor without center line.
+    public static var resizeLeftAlt: NSCursor {
+        NSCursor(named: "resizewest")
+    }
+    
+    /// Returns the resize-right system cursor without center line.
+    public static var resizeRightAlt: NSCursor {
+        NSCursor(named: "resizeeast")
+    }
+    
+    /// Returns the resize-left-and-right system cursor without center line.
+    public static var resizeLeftRightAlt: NSCursor {
+        NSCursor(named: "resizeeastwest")
+    }
+    
+    /**
+     Returns the move system cursor.
+     
+     This cursor is used to indicate that an object can be moved.
+     */
+    public static var move: NSCursor {
+        NSCursor(named: "move")
+    }
+    
+    /// Returns a cursor with an animated hand that counts up.
+    public static var countingUpHand: NSCursor {
+        NSCursor(named: "countinguphand")
+    }
+    
+    /// Returns a cursor with an animated hand that counts down.
+    public static var countingDownHand: NSCursor {
+        NSCursor(named: "countingdownhand")
+    }
+    
+    /// Returns a cursor with an animated hand that counts up and down.
+    public static var countingUpAnDownHand: NSCursor {
+        NSCursor(named: "countingupandownhand")
+    }
+    
+    static func cursor(named name: String) -> NSCursor? {
+        guard let object = NSCursor.perform(NSSelectorFromString(name)) else { return nil }
+        return object.takeUnretainedValue() as? NSCursor
+    }
         
         /**
          Returns an animated cursor for the specified animated image.
@@ -227,4 +341,20 @@ import Combine
             }
         }
     }
+
+fileprivate extension NSImage {
+    var retinaScaled: NSImage {
+        let resultImage = NSImage(size: size)
+        for scale in 1..<4 {
+            let transform = NSAffineTransform()
+            transform.scale(by: CGFloat(scale))
+            if let rasterCGImage = cgImage(forProposedRect: nil, context: nil, hints: [NSImageRep.HintKey.ctm: transform]) {
+                let rep = NSBitmapImageRep(cgImage: rasterCGImage)
+                rep.size = size
+                resultImage.addRepresentation(rep)
+            }
+        }
+        return resultImage
+    }
+}
 #endif
