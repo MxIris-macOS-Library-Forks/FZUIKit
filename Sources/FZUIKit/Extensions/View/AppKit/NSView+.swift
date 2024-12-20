@@ -411,11 +411,35 @@
                 }
             }
         }
+        
+        var borderColorTransform: ColorTransformer? {
+            get { getAssociatedValue("borderColorTransform") }
+            set { setAssociatedValue(newValue, key: "borderColorTransform") }
+        }
+        
+        var borderInsets: NSDirectionalEdgeInsets {
+            get { getAssociatedValue("borderInsets") ?? .zero }
+            set { setAssociatedValue(newValue, key: "borderInsets") }
+        }
+        
+        var borderDash: BorderConfiguration.Dash {
+            get { getAssociatedValue("borderDash") ?? .init() }
+            set { setAssociatedValue(newValue, key: "borderDash") }
+        }
+
 
         var _border: BorderConfiguration {
             get { getAssociatedValue("_border", initialValue: .init(color: realSelf._borderColor, width: realSelf._borderWidth)) }
             set { setAssociatedValue(newValue, key: "_border") }
         }
+        
+        /*
+         /// The insets of the border.
+         public var insets: NSDirectionalEdgeInsets = .init(0)
+         
+         /// The properties of the border dash.
+         public var dash: Dash = Dash()
+         */
 
         @objc var _borderWidth: CGFloat {
             get { (self as? NSBox)?.borderWidth ?? layer?.borderWidth ?? 0.0 }
@@ -431,6 +455,8 @@
         @objc var _borderColor: NSColor? {
             get { (self as? NSBox)?.borderColor ?? dynamicColors.border ?? layer?.borderColor?.nsUIColor }
             set {
+                optionalLayer?.borderColor = newValue?.cgColor
+                /*
                 if let box = self as? NSBox {
                     box.borderColor = newValue ?? box.borderColor
                 } else {
@@ -440,11 +466,12 @@
                     if animatableColor == nil, isProxy() {
                         animatableColor = .clear
                     }
-                    if layer?.borderColor?.isVisible == false || layer?.borderColor == nil {
-                        layer?.borderColor = animatableColor?.withAlphaComponent(0.0).cgColor ?? .clear
+                    if optionalLayer?.borderColor?.isVisible == false || optionalLayer?.borderColor == nil {
+                        optionalLayer?.borderColor = animatableColor?.withAlphaComponent(0.0).cgColor ?? .clear
                     }
                     optionalLayer?.borderColor = animatableColor?.cgColor
                 }
+                 */
             }
         }
 
@@ -488,8 +515,8 @@
                 if animatableColor == nil, isProxy() {
                     animatableColor = .clear
                 }
-                if layer?.shadowColor?.isVisible == false || layer?.shadowColor == nil {
-                    layer?.shadowColor = animatableColor?.withAlphaComponent(0.0).cgColor ?? .clear
+                if optionalLayer?.shadowColor?.isVisible == false || optionalLayer?.shadowColor == nil {
+                    optionalLayer?.shadowColor = animatableColor?.withAlphaComponent(0.0).cgColor ?? .clear
                 }
                 optionalLayer?.shadowColor = animatableColor?.cgColor
             }
