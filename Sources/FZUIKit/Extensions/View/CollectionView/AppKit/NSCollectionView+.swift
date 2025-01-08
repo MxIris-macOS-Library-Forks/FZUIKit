@@ -253,17 +253,17 @@
          
          The default value is `true`.
          */
-        var shouldDeselecttemsOnEmptyClick: Bool {
+        var shouldDeselectItemsOnEmptyClick: Bool {
             get { getAssociatedValue("shouldDeselectItemsOnEmptyClick") ?? true }
             set {
-                guard newValue != shouldDeselecttemsOnEmptyClick else { return }
+                guard newValue != shouldDeselectItemsOnEmptyClick else { return }
                 setAssociatedValue(newValue, key: "shouldDeselectItemsOnEmptyClick")
                 setupToggleGestureRecognizer()
             }
         }
         
         internal func setupToggleGestureRecognizer() {
-            if !shouldToggleSelectionOnClick && shouldDeselecttemsOnEmptyClick {
+            if !shouldToggleSelectionOnClick && shouldDeselectItemsOnEmptyClick {
                 selectionGestureRecognizer?.removeFromView()
                 selectionGestureRecognizer = nil
             } else if selectionGestureRecognizer == nil {
@@ -291,7 +291,7 @@
             override func mouseDown(with event: NSEvent) {
                 state = .began
                 var shouldFail = true
-                if let collectionView = view as? NSUICollectionView, collectionView.isSelectable, collectionView.allowsEmptySelection, collectionView.shouldToggleSelectionOnClick || !collectionView.shouldDeselecttemsOnEmptyClick {
+                if let collectionView = view as? NSUICollectionView, collectionView.isSelectable, collectionView.allowsEmptySelection, collectionView.shouldToggleSelectionOnClick || !collectionView.shouldDeselectItemsOnEmptyClick {
                     let indexPath = collectionView.indexPathForItem(at: event.location(in: collectionView))
                     if collectionView.shouldToggleSelectionOnClick, let indexPath = indexPath {
                         if collectionView.selectionIndexPaths.contains(indexPath) {
@@ -302,7 +302,7 @@
                             collectionView.delegate?.collectionView?(collectionView, didSelectItemsAt: [indexPath])
                         }
                         shouldFail = false
-                    } else if !collectionView.shouldDeselecttemsOnEmptyClick, indexPath == nil {
+                    } else if !collectionView.shouldDeselectItemsOnEmptyClick, indexPath == nil {
                         shouldFail = false
                     }
                 }
