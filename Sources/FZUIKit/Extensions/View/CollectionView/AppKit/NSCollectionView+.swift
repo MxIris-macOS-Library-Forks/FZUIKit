@@ -235,49 +235,54 @@
         }
         
         /**
-         A Boolean value indicating whether the selection of items is toggled when the user clicks an item.
+         A Boolean value indicating whether the selection of an item is toggled when the user clicks it.
          
          The default value is `false`.
          */
-        var shouldToggleSelectionOnClick: Bool {
-            get { getAssociatedValue("shouldToggleSelectionOnClick") ?? false }
+        var togglesSelection: Bool {
+            get { toggleSelectionGestureRecognizer != nil }
             set {
-                guard newValue != shouldToggleSelectionOnClick else { return }
-                setAssociatedValue(newValue, key: "shouldToggleSelectionOnClick")
-                setupToggleGestureRecognizer()
+                guard newValue != togglesSelection else { return }
+                if newValue {
+                    toggleSelectionGestureRecognizer = .init()
+                    addGestureRecognizer(toggleSelectionGestureRecognizer!)
+                } else {
+                    toggleSelectionGestureRecognizer?.removeFromView()
+                    toggleSelectionGestureRecognizer = nil
+                }
             }
         }
         
         /**
-         A Boolean value indicating whether all items should be deselected when the user clicks on the backgrouhd of the collection view.
+         A Boolean value indicating whether items are selected while the user drags the mouse.
          
-         The default value is `true`.
+         The default value is `false`, which selects the items after the mouse drag finishes.
          */
-        var shouldDeselectItemsOnEmptyClick: Bool {
-            get { getAssociatedValue("shouldDeselectItemsOnEmptyClick") ?? true }
+        var selectsWhileDragging: Bool {
+            get { dragSelectionGestureRecognizer != nil }
             set {
-                guard newValue != shouldDeselectItemsOnEmptyClick else { return }
-                setAssociatedValue(newValue, key: "shouldDeselectItemsOnEmptyClick")
-                setupToggleGestureRecognizer()
+                guard newValue != selectsWhileDragging else { return }
+                if newValue {
+                    dragSelectionGestureRecognizer = .init()
+                    addGestureRecognizer(dragSelectionGestureRecognizer!)
+                } else {
+                    dragSelectionGestureRecognizer?.removeFromView()
+                    dragSelectionGestureRecognizer = nil
+                }
             }
         }
         
-        internal func setupToggleGestureRecognizer() {
-            if !shouldToggleSelectionOnClick && shouldDeselectItemsOnEmptyClick {
-                selectionGestureRecognizer?.removeFromView()
-                selectionGestureRecognizer = nil
-            } else if selectionGestureRecognizer == nil {
-                selectionGestureRecognizer = SelectionGestureRecognizer()
-                addGestureRecognizer(selectionGestureRecognizer!)
-            }
+        internal var toggleSelectionGestureRecognizer: ToggleSelectionGestureRecognizer? {
+            get { getAssociatedValue("toggleSelectionGestureRecognizer") }
+            set { setAssociatedValue(newValue, key: "toggleSelectionGestureRecognizer") }
         }
         
-        internal var selectionGestureRecognizer: SelectionGestureRecognizer? {
-            get { getAssociatedValue("selectionGestureRecognizer") }
-            set { setAssociatedValue(newValue, key: "selectionGestureRecognizer") }
+        internal var dragSelectionGestureRecognizer: DragSelectionGestureRecognizer? {
+            get { getAssociatedValue("dragSelectionGestureRecognizer") }
+            set { setAssociatedValue(newValue, key: "dragSelectionGestureRecognizer") }
         }
         
-        internal class SelectionGestureRecognizer: NSGestureRecognizer {
+        internal class ToggleSelectionGestureRecognizer: NSGestureRecognizer {
             init() {
                 super.init(target: nil, action: nil)
                 delaysPrimaryMouseButtonEvents = true
@@ -290,23 +295,14 @@
             
             override func mouseDown(with event: NSEvent) {
                 state = .began
-                var shouldFail = true
-                if let collectionView = view as? NSUICollectionView, collectionView.isSelectable, collectionView.allowsEmptySelection, collectionView.shouldToggleSelectionOnClick || !collectionView.shouldDeselectItemsOnEmptyClick {
-                    let indexPath = collectionView.indexPathForItem(at: event.location(in: collectionView))
-                    if collectionView.shouldToggleSelectionOnClick, let indexPath = indexPath {
-                        if collectionView.selectionIndexPaths.contains(indexPath) {
-                            collectionView.deselectItems(at: [indexPath])
-                            collectionView.delegate?.collectionView?(collectionView, didDeselectItemsAt: [indexPath])
-                        } else {
-                            collectionView.selectItems(at: [indexPath], scrollPosition: [])
-                            collectionView.delegate?.collectionView?(collectionView, didSelectItemsAt: [indexPath])
-                        }
-                        shouldFail = false
-                    } else if !collectionView.shouldDeselectItemsOnEmptyClick, indexPath == nil {
-                        shouldFail = false
+                if let collectionView = view as? NSUICollectionView, collectionView.isSelectable, let indexPath = collectionView.indexPathForItem(at: event.location(in: collectionView)) {
+                    if collectionView.selectionIndexPaths.contains(indexPath) {
+                        collectionView.deselectItemsUsingDelegate(Set([indexPath]))
+                    } else {
+                        collectionView.selectItemsUsingDelegate(Set([indexPath]))
                     }
-                }
-                if shouldFail {
+                    state = .ended
+                } else {
                     state = .failed
                 }
             }
@@ -319,6 +315,64 @@
             override func mouseDragged(with event: NSEvent) {
                 state = .began
                 state = .failed
+            }
+        }
+
+        internal class DragSelectionGestureRecognizer: NSGestureRecognizer {
+            var mouseDownLocation: CGPoint = .zero
+            var selectionIndexPaths: Set<IndexPath> = []
+            
+            init() {
+                super.init(target: nil, action: nil)
+                reattachesAutomatically = true
+            }
+            
+            required init?(coder: NSCoder) {
+                fatalError("init(coder:) has not been implemented")
+            }
+            
+            override func mouseDown(with event: NSEvent) {
+                guard let collectionView = view as? NSUICollectionView, collectionView.isSelectable, collectionView.allowsMultipleSelection, collectionView.allowsEmptySelection else { return }
+                mouseDownLocation = event.location(in: collectionView)
+                selectionIndexPaths = collectionView.selectionIndexPaths
+            }
+                
+            override func mouseDragged(with event: NSEvent) {
+                guard let collectionView = view as? NSUICollectionView, collectionView.isSelectable, collectionView.allowsMultipleSelection, collectionView.allowsEmptySelection else { return }
+                let rect = CGRect(point1: mouseDownLocation, point2: event.location(in: collectionView))
+                var indexPaths = Set(collectionView.displayingIndexPaths(in: rect))
+                if event.modifierFlags.contains(.shift) {
+                    indexPaths = selectionIndexPaths.filter({ !indexPaths.contains($0) }) + indexPaths.filter({!selectionIndexPaths.contains($0)})
+                }
+                let diff = collectionView.selectionIndexPaths.difference(to: indexPaths)
+                if !diff.removed.isEmpty {
+                    collectionView.deselectItemsUsingDelegate(Set(diff.removed))
+                }
+                if !diff.added.isEmpty {
+                    collectionView.selectItemsUsingDelegate(Set(diff.added))
+                }
+            }
+        }
+        
+        internal func selectItemsUsingDelegate(_ indexPaths: Set<IndexPath>) {
+            var indexPaths = indexPaths
+            if let shouldSelect = delegate?.collectionView(_:shouldSelectItemsAt:) {
+                indexPaths = shouldSelect(self, indexPaths)
+            }
+            if !indexPaths.isEmpty {
+                selectItems(at: indexPaths, scrollPosition: [])
+                delegate?.collectionView?(self, didSelectItemsAt: indexPaths)
+            }
+        }
+        
+        internal func deselectItemsUsingDelegate(_ indexPaths: Set<IndexPath>) {
+            var indexPaths = indexPaths
+            if let shouldDeselect = delegate?.collectionView(_:shouldDeselectItemsAt:) {
+                indexPaths = shouldDeselect(self, indexPaths)
+            }
+            if !indexPaths.isEmpty {
+                deselectItems(at: indexPaths)
+                delegate?.collectionView?(self, didDeselectItemsAt: indexPaths)
             }
         }
     }
