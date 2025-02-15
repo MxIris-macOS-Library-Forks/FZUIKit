@@ -12,9 +12,8 @@ import FZSwiftUtils
 /// An enhanced image view.
 @IBDesignable
 open class ImageView: NSControl {
-    
-    public let containerView = ContainerView()
-    public let imageView = NSImageView()
+    let containerView = ContainerView()
+    let imageView = NSImageView()
     var timer: DisplayLinkTimer? = nil
     var currentRepeatCount = 0
     var ignoreTransition = false
@@ -308,8 +307,7 @@ open class ImageView: NSControl {
         
     /// The image tint color for template and symbol images.
     @IBInspectable open var tintColor: NSColor? {
-        get { imageView.contentTintColor }
-        set { imageView.contentTintColor = newValue }
+        didSet { updateTintColor() }
     }
     
     /// Sets the image tint color for template and symbol images.
@@ -317,6 +315,27 @@ open class ImageView: NSControl {
     open func tintColor(_ tintColor: NSColor?) -> Self {
         self.tintColor = tintColor
         return self
+    }
+    
+    var tintColorTransformer: ColorTransformer? = nil {
+        didSet { updateTintColor() }
+    }
+    
+    var currentBackgroundStyle: NSView.BackgroundStyle = .normal
+
+    open override func setBackgroundStyle(_ backgroundStyle: NSView.BackgroundStyle) {
+        guard backgroundStyle != currentBackgroundStyle else { return }
+        currentBackgroundStyle = backgroundStyle
+        tintColorTransformer = backgroundStyle == .emphasized ? .color(.white) : nil
+        super.setBackgroundStyle(backgroundStyle)
+    }
+    
+    func updateTintColor() {
+        if let tintColor = tintColor {
+            imageView.contentTintColor = tintColorTransformer?(tintColor) ?? tintColor
+        } else {
+            imageView.contentTintColor = nil
+        }
     }
     
     // MARK: - Configurating animations
@@ -1053,6 +1072,7 @@ open class ImageView: NSControl {
         imageView.baselineOffsetFromBottom
     }
     
+    /*
     open override var firstBaselineAnchor: NSLayoutYAxisAnchor {
         get { imageView.firstBaselineAnchor }
     }
@@ -1060,6 +1080,7 @@ open class ImageView: NSControl {
     open override var lastBaselineAnchor: NSLayoutYAxisAnchor {
         get { imageView.lastBaselineAnchor }
     }
+     */
     
     open override var acceptsFirstResponder: Bool { isSelectable != .off }
         
@@ -1117,7 +1138,7 @@ open class ImageView: NSControl {
         var frames: SynchronizedArray<Frame> = []
     }
     
-    public class ContainerView: NSView {
+    class ContainerView: NSView {
         let containerView = NSView()
         var didSetup = false
         var shadowObservation: KeyValueObservation?
