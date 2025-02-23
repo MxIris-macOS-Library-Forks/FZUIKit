@@ -163,6 +163,72 @@ extension NSView {
             setupObserverView()
         }
     }
+    
+    /// A touch event.
+    public struct TouchEvent: Hashable, CustomStringConvertible {
+        /// Phase of the event.
+        public enum Phase: Int, Hashable, CustomStringConvertible {
+            /// A new set of touches has been recognized.
+            case began
+            /// One or more touches have moved.
+            case moved
+            /// The touches have been removed.
+            case ended
+            /// The tracking of the touches has been cancelled for any reason (e.g. if the window associated with the touches resigns key or is deactivated).
+            case cancelled
+            
+            public var description: String {
+                switch self {
+                case .began: return "began"
+                case .moved: return "moved"
+                case .ended: return "ended"
+                case .cancelled: return "cancelled"
+                }
+            }
+        }
+        
+        /// The touches.
+        public let touches: Set<NSTouch>
+        
+        /// The phase of the event.
+        public let phase: Phase
+        
+        /// The touch event.
+        public let event: NSEvent
+        
+        public var description: String {
+            "TouchEvent(\(phase.description), touches: \(touches.count))"
+        }
+        
+        init(event: NSEvent, view: NSView, phase: Phase) {
+            self.touches = event.touches(matching: .any, in: view)
+            self.phase = phase
+            self.event = event
+        }
+    }
+    
+    /// The handler for touch events.
+    public var touchHandler: ((_ event: TouchEvent)->())? {
+        get { getAssociatedValue("touchHandler") }
+        set {
+            setAssociatedValue(newValue, key: "touchHandler")
+            guard !(self is TouchRecognizerView) else { return }
+            if let newValue = newValue {
+                if touchRecognizerView == nil {
+                    touchRecognizerView = TouchRecognizerView(for: self)
+                }
+                touchRecognizerView?.touchHandler = newValue
+            } else {
+                touchRecognizerView?.removeFromSuperview()
+                touchRecognizerView = nil
+            }
+        }
+    }
+    
+    var touchRecognizerView: TouchRecognizerView? {
+        get { getAssociatedValue("touchRecognizerView") }
+        set { setAssociatedValue(newValue, key: "touchRecognizerView") }
+    }
         
     var observerGestureRecognizer: ObserverGestureRecognizer? {
         get { getAssociatedValue("observerGestureRecognizer") }
@@ -651,6 +717,59 @@ extension NSView {
         
         var firstResponderObservation: KeyValueObservation?
         */
+    }
+    
+    class TouchRecognizerView: NSView {
+        var observation: KeyValueObservation!
+        
+        init(for view: NSView) {
+            super.init(frame: .zero)
+            allowedTouchTypes = .indirect
+            wantsRestingTouches = view.wantsRestingTouches
+            zPosition = 100000
+            view.addSubview(withConstraint: self)
+            isAlwaysAtFront = true
+            observation = view.observeChanges(for: \.wantsRestingTouches) { [weak self] old, new in
+                guard let self = self else { return }
+                self.wantsRestingTouches = new
+            }
+        }
+        
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+        
+        override func touchesBegan(with event: NSEvent) {
+            touchHandler?(.init(event: event, view: self, phase: .began))
+        }
+
+        override func touchesMoved(with event: NSEvent) {
+            touchHandler?(.init(event: event, view: self, phase: .moved))
+        }
+
+        override func touchesEnded(with event: NSEvent) {
+            touchHandler?(.init(event: event, view: self, phase: .ended))
+        }
+        
+        override func touchesCancelled(with event: NSEvent) {
+            touchHandler?(.init(event: event, view: self, phase: .cancelled))
+        }
+        
+        override var acceptsFirstResponder: Bool {
+            false
+        }
+        
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            guard let event = NSEvent.current else { return nil }
+            if event.type == .beginGesture || event.type == .gesture || event.type == .endGesture {
+                return super.hitTest(point)
+            }
+            return nil
+        }
+        
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+            return false
+        }
     }
 }
     
