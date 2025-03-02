@@ -219,7 +219,7 @@ extension NSMenu {
     }
     
     func setupDelegateProxy(itemProviderView: NSView? = nil) {
-        if itemProviderView != nil ||  items.contains(where: { $0.visiblity != .normal || $0.view is MenuItemView }) || handlers.needsDelegate {
+        if itemProviderView != nil ||  items.contains(where: { $0.visiblity != .normal }) || handlers.needsDelegate {
             if delegateProxy == nil {
                 delegateProxy = Delegate(self)
             }
@@ -303,16 +303,14 @@ extension NSMenu {
         }
         
         func menu(_ menu: NSMenu, update item: NSMenuItem, at index: Int, shouldCancel: Bool) -> Bool {
-            (item.view as? MenuItemView)?.updateBackgroundStyle()
-            return delegate?.menu?(menu, update: item, at: index, shouldCancel: shouldCancel) ?? true
+            delegate?.menu?(menu, update: item, at: index, shouldCancel: shouldCancel) ?? true
         }
         
         func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
+            menu.items.forEach({($0.view as? NSMenuItemView)?.isHighlighted = $0 === item })
             if menu.delegate === self {
                 menu.handlers.willHighlight?(item)
             }
-            menu.items.compactMap({$0.view as? MenuItemView}).forEach({$0.isHighlighted = false})
-            (item?.view as? MenuItemView)?.isHighlighted = true
             delegate?.menu?(menu, willHighlight: item)
         }
     }
