@@ -230,7 +230,7 @@ open class NSMenuItemView: NSView {
         invalidateIntrinsicContentSize()
     }
         
-    override init(frame frameRect: NSRect) {
+    public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         initialSetup()
     }
@@ -268,7 +268,7 @@ open class NSMenuItemView: NSView {
 
     public override var allowsVibrancy: Bool { false }
     
-    public override var intrinsicContentSize: NSSize {
+    open override var intrinsicContentSize: NSSize {
         subviews.forEach({ $0.invalidateIntrinsicContentSize() })
         var intrinsicContentSize = subviews.map{ $0.intrinsicContentSize }.max(by: \.width) ?? .zero
         if intrinsicContentSize == CGSize(-1, -1) {
