@@ -48,7 +48,7 @@ import FZSwiftUtils
 
  If ``autoHighlightSubviews`` is set to `true` (default), supported views will automatically change their appearance to match the highlighted state.
  */
-open class NSMenuItemView: NSView {
+open class NSMenuItemView: NSTableCellView {
     private var highlightViewConstraits: [NSLayoutConstraint] = []
     private var contentViewConstraits: [NSLayoutConstraint] = []
     
@@ -120,7 +120,7 @@ open class NSMenuItemView: NSView {
      Any view added using ``addSubview(_:layoutAutomatically:)`` and `layoutAutomatically` is `true`, gets constraint to the `layoutGuide` and it's margins.
      */
     public var contentMargins = NSEdgeInsets(top: 3, left: 8, bottom: 3, right: 8) {
-        didSet { contentViewConstraits.constant(highlightMargins) }
+        didSet { contentViewConstraits.constant(contentMargins) }
     }
     
     /// Sets the margins that are used to layout the ``contentView``.
@@ -296,13 +296,16 @@ open class NSMenuItemView: NSView {
         if autoHighlightSubviews {
             if isEnabled {
                 subviews.forEach({ $0.alphaValue = 1.0 })
-                setBackgroundStyle(isHighlighted ? .emphasized : .normal)
+                backgroundStyle = isHighlighted ? .emphasized : .normal
+              // setBackgroundStyle(isHighlighted ? .emphasized : .normal)
             } else {
                 subviews.forEach({ $0.alphaValue = 0.4 })
-                setBackgroundStyle(.normal)
+                backgroundStyle = .normal
+             //   setBackgroundStyle(.normal)
             }
         } else {
-            setBackgroundStyle(.normal)
+            backgroundStyle = .normal
+           // setBackgroundStyle(.normal)
         }
     }
      
