@@ -7,18 +7,19 @@
 
 #if os(macOS)
 import AppKit
+import FZSwiftUtils
 
 public extension NSGridCell {
     /// The column indexes of the cell.
-    var columnIndexes: [Int] {
-        guard let cells = column?.cells, let startIndex = cells.firstIndex(of: self), let endIndex = cells.lastIndex(of: self) else { return [] }
-        return (startIndex...endIndex).map({$0})
+    var columnIndexes: IndexSet {
+        guard let cells = column?.allCells, let startIndex = cells.firstIndex(of: self), let endIndex = cells.lastIndex(of: self) else { return [] }
+        return IndexSet((startIndex...endIndex).map({$0}))
     }
     
     /// The row indexes of the cell.
-    var rowIndexes: [Int] {
-        guard let cells = row?.cells, let startIndex = cells.firstIndex(of: self), let endIndex = cells.lastIndex(of: self) else { return [] }
-        return (startIndex...endIndex).map({$0})
+    var rowIndexes: IndexSet {
+        guard let cells = row?.allCells, let startIndex = cells.firstIndex(of: self), let endIndex = cells.lastIndex(of: self) else { return [] }
+        return IndexSet(((startIndex...endIndex).map({$0})))
     }
     
     /// The grid cell above.
@@ -53,28 +54,66 @@ public extension NSGridCell {
         return gridView.cell(atColumnIndex: columnIndex+1, rowIndex: gridView.index(of: row))
     }
     
+    /// A Boolean value indicating whether the cell is merged with one or several other cells.
+    var isMerged: Bool {
+        value(forKey: "_isMerged") as? Bool ?? false
+    }
+    
+    /// Unmerges the cell and all related cells.
+    func unmerge() {
+        guard let headCell = headOfMergedCell else { return }
+        columnCells.unmerge(headCell)
+        rowCells.unmerge(headCell)
+        (row?.allCells_ ?? []).unmerge(headCell)
+    }
+    
     internal var rowCells: [NSGridCell] {
-        row?.cells ?? []
+        row?.allCells ?? []
     }
     
     internal var columnCells: [NSGridCell] {
-        column?.cells ?? []
+        column?.allCells ?? []
     }
     
     internal var headOfMergedCell: NSGridCell? {
         get { value(forKey: "_headOfMergedCell") as? NSGridCell }
         set { setValue(newValue, forKey: "_headOfMergedCell")}
     }
-    
-    internal func unmerge() {
-        guard let headCell = headOfMergedCell else { return }
-        columnCells.unmerge(headCell)
-        rowCells.unmerge(headCell)
+}
+
+extension NSGridCell.Placement: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .inherited: return "inherited"
+        case .none: return "none"
+        case .leading: return "leading"
+        case .top: return "top"
+        case .trailing: return "trailing"
+        case .bottom: return "bottom"
+        case .center: return "center"
+        default: return "fill"
+        }
     }
 }
 
-fileprivate extension Collection where Element == NSGridCell {
-    func unmerge(_ headCell: NSGridCell, unmergeAll: Bool = false) {
+extension Collection where Element == NSGridCell {
+    var uniqueCells: [NSGridCell] {
+        var cells: [NSGridCell] = []
+        var headCell: NSGridCell?
+        for cell in self {
+            if let headOfMergedCell = cell.headOfMergedCell {
+                if headCell !== headOfMergedCell {
+                    cells += cell
+                    headCell = headOfMergedCell
+                }
+            } else {
+                cells += cell
+            }
+        }
+        return cells
+    }
+    
+    fileprivate func unmerge(_ headCell: NSGridCell, unmergeAll: Bool = false) {
         if !unmergeAll {
             guard let index = firstIndex(where: { $0.headOfMergedCell === headCell }) else { return }
             self[safe: index...].filter({ $0.headOfMergedCell === headCell }).reversed().forEach({ $0.headOfMergedCell = nil })

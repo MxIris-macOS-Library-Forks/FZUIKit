@@ -20,6 +20,8 @@ public class GridRow {
     /// The cells of the row.
     public var cells: [GridCell] { (gridRow?.cells ?? []).compactMap({ GridCell($0) }) }
     
+    var allCells: [GridCell] { (gridRow?.allCells ?? []).compactMap({ GridCell($0) }) }
+    
     /// The content views of the grid row cells.
     public var views: [NSView?] {
         get { gridRow?.views ?? properties.views }
@@ -146,7 +148,7 @@ public class GridRow {
         if gridRow != nil {
             mergeCells(in: 0..<numberOfCells)
         } else {
-            properties.merge = true
+            properties.mergeStart = 0
         }
         return self
     }
@@ -156,7 +158,12 @@ public class GridRow {
     public func mergeCells(in range: Range<Int>) -> Self {
         if gridRow != nil {
             guard numberOfCells > 0 else { return self }
+            let allCells = allCells.uniqued().compactMap({ (cell: $0, view: $0.view) })
             gridRow?.mergeCells(in: range.clamped(max: numberOfCells).nsRange)
+            let newAllCells = self.allCells.uniqued()
+            var views = allCells.filter({ !newAllCells.contains($0.cell) }).compactMap({ $0.view })
+            views = views.filter({ view in !newAllCells.contains(where: {$0.view === view }) })
+            views.forEach({ $0.removeFromSuperview() })
         } else {
             properties.mergeStart = range.lowerBound
             properties.mergeEnd = range.upperBound
@@ -170,23 +177,13 @@ public class GridRow {
         mergeCells(in: range.toRange)
     }
     
-    /// Merges the cells from the first view to the second view.
-    @discardableResult
-    public func mergeCells(from firstView: NSView, to secondView: NSView) -> Self {
-        let views = views
-        if let startIndex = views.firstIndex(of: firstView), let endIndex = views.firstIndex(of: secondView), startIndex <= endIndex {
-            mergeCells(in: startIndex..<endIndex)
-        }
-        return self
-    }
-    
     /// Merges the cells of the row starting from the specified index.
     @discardableResult
-    public func mergeCells(from index: Int) -> Self {
+    public func mergeCells(in range: PartialRangeFrom<Int>) -> Self {
         if gridRow != nil {
-            mergeCells(in: index..<numberOfCells)
+            mergeCells(in: range.lowerBound..<numberOfCells)
         } else {
-            properties.mergeStart = index
+            properties.mergeStart = range.lowerBound
             properties.mergeEnd = nil
         }
         return self
@@ -194,12 +191,22 @@ public class GridRow {
     
     /// Merges the cells of the row upto the specified index.
     @discardableResult
-    public func mergeCells(upto index: Int) -> Self {
+    public func mergeCells(in range: PartialRangeUpTo<Int>) -> Self {
         if gridRow != nil {
-            mergeCells(in: 0..<index)
+            mergeCells(in: 0..<range.upperBound)
         } else {
             properties.mergeStart = nil
-            properties.mergeEnd = index
+            properties.mergeEnd = range.upperBound
+        }
+        return self
+    }
+    
+    /// Merges the cells from the first view to the second view.
+    @discardableResult
+    public func mergeCells(from firstView: NSView, to secondView: NSView) -> Self {
+        let views = views
+        if let startIndex = views.firstIndex(of: firstView), let endIndex = views.firstIndex(of: secondView), startIndex <= endIndex {
+            mergeCells(in: startIndex..<endIndex)
         }
         return self
     }
@@ -235,18 +242,25 @@ public class GridRow {
         return self
     }
     
+    /// Unmerges the cells of the row starting from the specified range's lowerBound value.
+    @discardableResult
+    public func unmergeCells(in range: PartialRangeFrom<Int>) -> Self {
+        (gridRow?.cells ?? [])[safe: range].forEach({ $0.unmerge() })
+        return self
+    }
+    
+    /// Unmerges the cells of the row upto the specified range's upperBound value.
+    @discardableResult
+    public func unmergeCells(in range: PartialRangeUpTo<Int>) -> Self {
+        (gridRow?.cells ?? [])[safe: range].forEach({ $0.unmerge() })
+        return self
+    }
+    
     /// A grid row with a line.
     public static var line: GridRow { 
         let row = GridRow(NSBox.horizontalLine()).mergeCells()
         row.properties.autoMerge = true
         return row
-    }
-    
-    /// A grid row with the specific spacing.
-    public static func spacing(_ height: CGFloat) -> GridRow {
-        let spacer = NSView()
-        spacer.heightAnchor.constraint(equalToConstant: height).activate()
-        return GridRow(spacer)
     }
     
     /// Creates a grid row with cells displaying the specified views.
@@ -364,7 +378,6 @@ extension GridRow {
         var topPadding: CGFloat = 0.0
         var bottomPadding: CGFloat = 0.0
         var rowAlignment: NSGridRow.Alignment = .inherited
-        var merge: Bool = false
         var mergeStart: Int? = nil
         var mergeEnd: Int? = nil
         var autoMerge: Bool = false
@@ -375,14 +388,14 @@ extension GridRow {
             mergeCells(in: (properties.mergeStart ?? 0)..<(properties.mergeEnd ?? numberOfCells))
             properties.mergeStart = nil
             properties.mergeEnd = nil
-        } else if properties.merge || properties.autoMerge {
-            properties.merge = false
+        } else if properties.autoMerge {
             mergeCells()
         }
     }
     
     func remove() {
         guard let index = index, let gridView = gridView else { return }
+        cells.forEach({ $0.unmerge() })
         gridRow = nil
         gridView.removeRow(at: index)
     }
@@ -452,11 +465,27 @@ extension GridRow: CustomStringConvertible, CustomDebugStringConvertible {
         let height = gridRow?.height ?? properties.height
         var strings = ["GridRow:"]
         strings += "views: [\(views.compactMap({ if let view = $0 { return "\(type(of: view))"} else { return "Empty"} }).joined(separator: ", "))]"
-        strings += "alignment: \(alignment)"
+        strings += "alignment: \(alignmentString)"
         strings += "height: \(height == NSGridView.sizedForContent ? "sizedForContent" : "\(height)")"
         strings += "bottomPadding: \(bottomPadding), topPadding: \(topPadding)"
         strings += "isHidden: \(isHidden)"
         return strings.joined(separator: "\n  - ")
+    }
+    
+    var alignmentString: String {
+        if alignment == .inherited, let description = gridView?.alignment.y.description {
+            return "inherited(\(description))"
+        }
+        return alignment.description
+    }
+    
+    var cellAlignmentString: String? {
+        if alignment == .inherited, let description = gridView?.alignment.y.description {
+            return "inherited(\(description))"
+        } else if alignment != .inherited {
+            return "inherited(\(alignment.description))"
+        }
+        return nil
     }
 }
 

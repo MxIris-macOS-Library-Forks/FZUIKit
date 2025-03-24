@@ -28,9 +28,9 @@ extension NSGridView {
         get { (0..<numberOfColumns).map({ GridColumn(column(at: $0)) }) }
         set {
             translatesAutoresizingMaskIntoConstraints = false
-            let numberOfColumns = numberOfColumns
             let existing = newValue.filter({$0.gridColumn != nil })
             let added = newValue.filter({$0.gridColumn == nil })
+            
             columns.filter({ column in !existing.contains(where: { $0.gridColumn === column.gridColumn }) }).reversed().forEach({ $0.remove() })
             for column in added {
                 addColumn(with: [])
@@ -42,15 +42,12 @@ extension NSGridView {
                 }
             }
             newValue.forEach({ $0.applyMerge() })
-            if self.numberOfColumns > numberOfColumns {
-                rows.filter({ $0.properties.autoMerge }).forEach({ $0.applyMerge() })
-            }
         }
     }
     
     /// Sets the columns of the grid view.
     @discardableResult
-    public func columns(@GridColumn.Builder columns: () -> [GridColumn]) -> Self {
+    public func columns(@GridColumn.Builder _ columns: () -> [GridColumn]) -> Self {
         self.columns = columns()
         return self
     }
@@ -62,7 +59,7 @@ extension NSGridView {
             translatesAutoresizingMaskIntoConstraints = false
             let existing = newValue.filter({$0.gridRow != nil })
             let added = newValue.filter({$0.gridRow == nil })
-            
+
             rows.filter({ row in !existing.contains(where: { $0.gridRow === row.gridRow }) }).reversed().forEach({ $0.remove() })
             for row in added {
                 addRow(with: [])
@@ -79,7 +76,7 @@ extension NSGridView {
     
     /// Sets the rows of the grid view.
     @discardableResult
-    public func rows(@GridRow.Builder rows: () -> [GridRow]) -> Self {
+    public func rows(@GridRow.Builder _ rows: () -> [GridRow]) -> Self {
         self.rows  = rows()
         return self
     }
@@ -129,10 +126,48 @@ extension NSGridView {
     /// Merges the cells of the specified index range.
     func mergeCells(from fromIndex: (column: Int, row: Int), to toIndex: (column: Int, row: Int)) {
         mergeCells(inHorizontalRange: fromIndex.column..<toIndex.column, verticalRange: fromIndex.row..<toIndex.row)
-    }    
+    }
+    
+    /// Returns the grid cell that contains the given view or one of its ancestors.
+    public func gridCell(for view: NSView) -> GridCell? {
+        guard let cell = cell(for: view) else { return nil }
+        return GridCell(cell)
+    }
 }
 
 extension NSGridView {
+    /// The alignment of the grid cells.
+    public var alignment: Alignment {
+        get { Alignment(self) }
+        set {
+            xPlacement = newValue.x.placement
+            yPlacement = newValue.y.placement
+            rowAlignment = newValue.y.rowAlignment
+        }
+    }
+    
+    /// Sets the alignment of the grid cells.
+    @discardableResult
+    public func alignment(x: Alignment.Horizontal, y: Alignment.Vertical) -> Self {
+        alignment.x = x
+        alignment.y = y
+        return self
+    }
+    
+    /// Sets the horizontal alignment of the grid cells.
+    @discardableResult
+    public func alignment(x: Alignment.Horizontal) -> Self {
+        alignment.x = x
+        return self
+    }
+    
+    /// Sets the vertical alignment of the grid cells.
+    @discardableResult
+    public func alignment(y: Alignment.Vertical) -> Self {
+        alignment.y = y
+        return self
+    }
+    
     /// The alignment of grid cells.
     public struct Alignment: CustomStringConvertible {
         /// The horizontal alignment of grid cells.
@@ -233,38 +268,6 @@ extension NSGridView {
             y = .init(gridView.yPlacement, gridView.rowAlignment)
         }
     }
-    
-    /// The alignment of the grid cells.
-    public var alignment: Alignment {
-        get { Alignment(self) }
-        set {
-            xPlacement = newValue.x.placement
-            yPlacement = newValue.y.placement
-            rowAlignment = newValue.y.rowAlignment
-        }
-    }
-    
-    /// Sets the alignment of the grid cells.
-    @discardableResult
-    public func alignment(x: Alignment.Horizontal, y: Alignment.Vertical) -> Self {
-        alignment.x = x
-        alignment.y = y
-        return self
-    }
-    
-    /// Sets the horizontal alignment of the grid cells.
-    @discardableResult
-    public func alignment(x: Alignment.Horizontal) -> Self {
-        alignment.x = x
-        return self
-    }
-    
-    /// Sets the vertical alignment of the grid cells.
-    @discardableResult
-    public func alignment(y: Alignment.Vertical) -> Self {
-        alignment.y = y
-        return self
-    }
 }
 
 extension NSGridView {
@@ -317,21 +320,6 @@ extension NSGridView {
         
         public static func buildExpression(_ expression: some View) -> [NSView?] {
             [NSHostingView(rootView: expression)]
-        }
-    }
-}
-
-extension NSGridCell.Placement: CustomStringConvertible {
-    public var description: String {
-        switch self {
-        case .inherited: return "inherited"
-        case .none: return "none"
-        case .leading: return "leading"
-        case .top: return "top"
-        case .trailing: return "trailing"
-        case .bottom: return "bottom"
-        case .center: return "center"
-        default: return "fill"
         }
     }
 }
