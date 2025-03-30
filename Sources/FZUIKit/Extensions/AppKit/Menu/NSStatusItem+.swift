@@ -20,7 +20,8 @@ import SwiftUI
          */
         public var onClick: (()->())? {
             get { getAssociatedValue("onClick") }
-            set { setAssociatedValue(newValue, key: "onClick")
+            set { 
+                setAssociatedValue(newValue, key: "onClick")
                 updateAction()
             }
         }
@@ -34,7 +35,8 @@ import SwiftUI
          */
         public var onRightClick: (()->())? {
             get { getAssociatedValue("onRightClick") }
-            set { setAssociatedValue(newValue, key: "onRightClick")
+            set { 
+                setAssociatedValue(newValue, key: "onRightClick")
                 updateAction()
             }
         }
@@ -54,7 +56,8 @@ import SwiftUI
         /// The menu that is displayed when the item is right clicked.
         public var rightClickMenu: NSMenu? {
             get { getAssociatedValue("rightClickMenu") }
-            set { setAssociatedValue(newValue, key: "rightClickMenu")
+            set { 
+                setAssociatedValue(newValue, key: "rightClickMenu")
                 updateAction()
             }
         }
@@ -233,13 +236,13 @@ import SwiftUI
         
         func updateAction() {
             var mask: NSEvent.EventTypeMask = []
-            if onClick != nil { mask.insert(.leftMouseUp) }
-            if onRightClick != nil || rightClickMenu != nil { mask.insert(.rightMouseUp) }
+            if onClick != nil || popover != nil { mask.insert(.leftMouseUp) }
+            if onRightClick != nil || rightClickMenu != nil || rightClickPopover != nil { mask.insert(.rightMouseUp) }
             if onMouseHold != nil { mask.insert([.leftMouseDown, .leftMouseUp]) }
             if onRightMouseHold != nil { mask.insert([.rightMouseDown, .rightMouseUp]) }
             button?.sendAction(on: mask)
             
-            if onClick != nil || onRightClick != nil || onMouseHold != nil || onRightMouseHold != nil || rightClickMenu != nil {
+            if onClick != nil || onRightClick != nil || onMouseHold != nil || onRightMouseHold != nil || rightClickMenu != nil || popover != nil || rightClickPopover != nil {
                 if let menu = menu {
                     leftClickMenu = menu
                     self.menu = nil
@@ -259,16 +262,36 @@ import SwiftUI
                     case .leftMouseUp:
                         self.onMouseHold?(.isReleased)
                         self.onClick?()
+                        if let popover = self.popover, let button = self.button {
+                            if popover.isShown && popover.isDetached {
+                                popover.undetach()
+                            } else if popover.isShown {
+                                popover.close()
+                            } else {
+                                popover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY)
+                                button.isHighlighted = true
+                            }
+                        }
                         if let leftClickMenu = self.leftClickMenu {
-                            popUpMenu(leftClickMenu)
+                            perform(NSSelectorFromString("popUpMenu"), with: leftClickMenu)
                         }
                     case .rightMouseDown:
                         self.onRightMouseHold?(.isPressed)
                     case .rightMouseUp:
                         self.onRightMouseHold?(.isReleased)
                         self.onRightClick?()
+                        if let popover = self.rightClickPopover, let button = self.button {
+                            if popover.isShown && popover.isDetached {
+                                popover.undetach()
+                            } else if popover.isShown {
+                                popover.close()
+                            } else {
+                                popover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY)
+                                button.isHighlighted = true
+                            }
+                        }
                         if let rightClickMenu = self.rightClickMenu {
-                            popUpMenu(rightClickMenu)
+                            perform(NSSelectorFromString("popUpMenu"), with: rightClickMenu)
                         }
                     default: break
                     }
@@ -327,19 +350,36 @@ import SwiftUI
             }
         }
         
-        /*
-        var popoverView: NSView? {
-            popover?.contentView
-        }
-        
-        var popoverViewController: NSViewController? {
-            popover?.contentViewController
-        }
-        
-        var popover: NSPopover? {
+        /// The popover displayed when clicking the item.
+        public var popover: NSPopover? {
             get { getAssociatedValue("popover") }
-            set { setAssociatedValue(newValue, key: "popover") }
+            set { 
+                setAssociatedValue(newValue, key: "popover")
+                updateAction()
+            }
         }
-         */
+        
+        /// Sets the popover displayed when clicking the item.
+        @discardableResult
+        public func popover(_ popover: NSPopover?) -> Self {
+            self.popover = popover
+            return self
+        }
+        
+        /// The popover displayed when right-clicking the item.
+        public var rightClickPopover: NSPopover? {
+            get { getAssociatedValue("rightClickPopover") }
+            set {
+                setAssociatedValue(newValue, key: "rightClickPopover")
+                updateAction()
+            }
+        }
+        
+        /// Sets the popover displayed when right-clicking the item.
+        @discardableResult
+        public func rightClickPopover(_ popover: NSPopover?) -> Self {
+            self.rightClickPopover = popover
+            return self
+        }
     }
 #endif

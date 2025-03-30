@@ -65,6 +65,12 @@ extension NSPopover {
         self.contentView = view
     }
     
+    /// Creates and returns a popover with the specified content view.
+    public convenience init<V: View>(view: V) {
+        self.init()
+        self.contentView = NSHostingView(rootView: view)
+    }
+    
     /// Creates and returns a popover with the specified content view controller.
     public convenience init(viewController: NSViewController) {
         self.init()
@@ -199,6 +205,19 @@ extension NSPopover {
                 perform(detach)
             }
             closeButton?.isHidden = hidesDetachedCloseButton
+        }
+    }
+    
+    /// Undetaches the popover.
+    @objc open func undetach() {
+        guard isDetached, isShown, let positioningView = positioningView else { return }
+        let animates = animates
+        self.animates = false
+        close()
+        detach()
+        DispatchQueue.main.asyncAfter(0.01) {
+            self.show(relativeTo: positioningView.bounds, of: positioningView, preferredEdge: self.preferredEdge)
+            self.animates = animates
         }
     }
     
