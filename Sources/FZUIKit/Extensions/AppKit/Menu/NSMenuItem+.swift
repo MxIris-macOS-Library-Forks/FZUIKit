@@ -178,8 +178,8 @@ public extension NSMenuItem {
     
     /// The font of the menu item.
     var font: NSFont? {
-        get { value(forKey: Keys.font.unmangled) as? NSFont }
-        set { setValue(newValue, forKey: Keys.font.unmangled) }
+        get { value(forKeySafely: "font") as? NSFont }
+        set { setValue(safely: newValue, forKey: "font") }
     }
     
     /// Sets the font of the menu item.
@@ -278,6 +278,17 @@ public extension NSMenuItem {
     @discardableResult
     func keyEquivalent(_ keyEquivalent: String) -> Self {
         self.keyEquivalent = keyEquivalent
+        return self
+    }
+    
+    /**
+     Sets the menu item as an alternate to the previous menu item in the menu, that is displayed when the specified modifier flags are hold.
+
+     If you set this value to `[]`, the item isn't an alternative and displayed all the time.
+     */
+    func alternateModifierFlags(_ modifierFlags: NSEvent.ModifierFlags) -> Self {
+        isAlternate = modifierFlags != []
+        keyEquivalentModifierMask = modifierFlags
         return self
     }
     
@@ -497,10 +508,6 @@ public extension NSMenuItem {
     internal var menuObservation: KeyValueObservation? {
         get { getAssociatedValue("menuObservation") }
         set { setAssociatedValue(newValue, key: "menuObservation") }
-    }
-    
-    private struct Keys {
-        static let font = "font".mangled
     }
 }
 
