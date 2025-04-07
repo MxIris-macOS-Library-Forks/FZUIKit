@@ -14,14 +14,33 @@ import FZSwiftUtils
 public struct PathShape {
     let handler: (CGRect)->(CGPath)
     
+    var insettableShape: (any InsettableShape)?
+    
     /// Creates a shape with the specified handler that provides the path of the shape.
     public init(handler: @escaping (_ rect: CGRect) -> CGPath) {
         self.handler = handler
     }
     
+    public init(_ shape: some InsettableShape) {
+        insettableShape = shape
+        handler = {
+            #if os(macOS)
+            return shape.path(in: $0).cgPath.verticallyFlipped(in: $0)
+            #else
+            return shape.path(in: $0).cgPath
+            #endif
+        }
+    }
+    
     /// Creates a shape from the specified `SwiftUI`shape.
     public init<S: Shape>(_ shape: S) {
-        handler = { shape.path(in: $0).cgPath }
+        handler = {
+            #if os(macOS)
+            return shape.path(in: $0).cgPath.verticallyFlipped(in: $0)
+            #else
+            return shape.path(in: $0).cgPath
+            #endif
+        }
     }
     
     /// Describes this shape as a path within a rectangular frame of reference.
@@ -107,15 +126,11 @@ public struct PathShape {
     
     /// Insets the shape.
     public func inset(by amount: CGFloat) -> PathShape {
-        PathShape { rect in
-            path(in: rect.insetBy(dx: amount, dy: amount))
+        if let insettableShape = insettableShape {
+            return PathShape(insettableShape.inset(by: amount))
         }
-    }
-    
-    /// Insets the shape.
-    public func insetBy(x: CGFloat, y: CGFloat) -> PathShape {
-        PathShape { rect in
-            path(in: rect.insetBy(dx: x, dy: y))
+        return PathShape { rect in
+            path(in: rect.insetBy(dx: amount, dy: amount))
         }
     }
     
@@ -197,7 +212,7 @@ extension PathShape {
 
 extension PathShape {
     /// A rectangular shape.
-    public static var rect: PathShape { PathShape(.rect) }
+    public static let rect = PathShape(.rect)
     
     /// A rectangular shape with rounded corners.
     public static func rect(cornerSize: CGSize, style: RoundedCornerStyle = .continuous) -> PathShape { PathShape(.rect(cornerSize: cornerSize, style: style)) }
@@ -222,23 +237,32 @@ extension PathShape {
     /**
      A rectangular shape with relative corner radius.
      
-     The corner radius is defined as a fraction of the smaller dimension of the rectangle,
-     ensuring proportional rounding regardless of the rectangle's size.
+     The corner radius is defined as a fraction of the smaller dimension of the rectangle, ensuring proportional rounding regardless of the rectangle's size.
      */
-    public static func rect(relativeCornerRadius cornerRadius: CGFloat, style: RoundedCornerStyle = .continuous) -> PathShape { PathShape(.rect(relativeCornerRadius: cornerRadius, style: style)) }
+    public static func relativeRoundedRect(cornerRadius: CGFloat, style: RoundedCornerStyle = .continuous) -> PathShape { PathShape(.relativeRoundedRect(cornerRadius: cornerRadius, style: style)) }
+    
+    /**
+     A rectangular shape with rounded corners with different relative values.
+
+     The corner radius of each corner is defined as a fraction of the smaller dimension of the rectangle, ensuring proportional rounding regardless of the rectangle's size.
+     
+     A corner radius of `0.0` represents no rounding and `1.0` the maximum.
+     */
+    @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+    public static func relativeRoundedRect(topLeadingRadius: CGFloat = 0.0, bottomLeadingRadius: CGFloat = 0.0, bottomTrailingRadius: CGFloat = 0.0, topTrailingRadius: CGFloat = 0.0, style: RoundedCornerStyle = .continuous) -> PathShape { PathShape(.relativeRoundedRect(topLeadingRadius: topLeadingRadius, bottomLeadingRadius: bottomLeadingRadius, bottomTrailingRadius: bottomTrailingRadius, topTrailingRadius: topTrailingRadius, style: style)) }
 
     
     /// A circle centered on the frame.
-    public static var circle: PathShape { PathShape(.circle) }
+    public static let circle = PathShape(.circle)
     
     /// A capsule shape.
-    public static var capsule: PathShape { PathShape(.capsule) }
-    
+    public static let capsule = PathShape(.capsule)
+
     /// A capsule shape.
     public static func capsule(style: RoundedCornerStyle) -> PathShape { PathShape(.capsule(style: style)) }
     
     /// An ellipse shape.
-    public static var ellipse: PathShape { PathShape(.ellipse) }
+    public static let ellipse = PathShape(.ellipse)
     
     /// A star shape.
     public static func star(points: Int = 5, cutout: Bool = false, rounded: Bool = false) -> PathShape { PathShape(Star(points: points, cutout: cutout, rounded: rounded)) }
@@ -274,6 +298,14 @@ extension CAShapeLayer {
     var boundsObservation: KeyValueObservation? {
         get { getAssociatedValue("boundsObservation") }
         set { setAssociatedValue(newValue, key: "boundsObservation") }
+    }
+}
+
+fileprivate extension CGPath {
+    func verticallyFlipped(in rect: CGRect) -> CGPath {
+        var transform = CGAffineTransform(scaleX: 1, y: -1)
+        transform = transform.translatedBy(x: 0, y: -rect.height)
+        return copy(using: &transform) ?? self
     }
 }
 #endif
