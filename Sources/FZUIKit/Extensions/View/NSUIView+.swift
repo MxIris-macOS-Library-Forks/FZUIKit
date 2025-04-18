@@ -290,35 +290,28 @@ import FZSwiftUtils
              Using this property turns the view into a layer-backed view. The value can be animated via `animator()`.
              */
             @objc open var gradient: Gradient? {
-                get { self.optionalLayer?._gradientLayer?.gradient }
+                get { optionalLayer?.gradient }
                 set {
                     NSUIView.swizzleAnimationForKey()
                     let newGradient = newValue ?? .init(stops: [])
-                    var didSetupNewGradientLayer = false
-                    if newValue?.stops.isEmpty == false {
+                    if !newGradient.stops.isEmpty {
                         backgroundColor = nil
-                        didSetupNewGradientLayer = true
                         self.wantsLayer = true
-                        if self.optionalLayer?._gradientLayer == nil {
-                            let gradientLayer = GradientLayer()
-                            self.optionalLayer?.addSublayer(withConstraint: gradientLayer)
-                            gradientLayer.sendToBack()
-                            gradientLayer.zPosition = -CGFloat(Float.greatestFiniteMagnitude)
-
-                            gradientLayer.locations = newGradient.stops.compactMap { NSNumber($0.location) }
-                            gradientLayer.startPoint = newGradient.startPoint.point
-                            gradientLayer.endPoint = newGradient.endPoint.point
-                            gradientLayer.colors = newGradient.stops.compactMap { $0.color.withAlphaComponent(0.0).cgColor }
+                        if optionalLayer?._gradientLayer == nil {
+                            var newGradient = newGradient
+                            newGradient.stops = newGradient.stops.map({
+                                $0.transparent })
+                            optionalLayer?.gradient = newGradient
                         }
-                        self.layer?.backgroundColor = nil
                     }
-                    if didSetupNewGradientLayer == false {
-                        self.gradientLocations = newGradient.stops.compactMap(\.location)
-                        self.gradientStartPoint = newGradient.startPoint.point
-                        self.gradientEndPoint = newGradient.endPoint.point
-                    }
-                    self._gradientColors = newGradient.stops.compactMap(\.color.cgColor)
-                    self.optionalLayer?._gradientLayer?.type = newGradient.type.gradientLayerType
+                    let padded = Gradient.ColorStop.padded(from: optionalLayer?.gradient?.stops ?? [], to: newValue?.stops ?? [])
+                    
+                    gradientStartPoint = newGradient.startPoint.point
+                    gradientEndPoint = newGradient.endPoint.point
+                    optionalLayer?._gradientLayer?.type = newGradient.type.gradientLayerType
+                    
+                    gradientLocations = newGradient.stops.compactMap(\.location)
+                    _gradientColors = newGradient.stops.compactMap(\.color.cgColor)
                 }
             }
         
@@ -329,13 +322,8 @@ import FZSwiftUtils
              Applying a gradient sets the view's `backgroundColor` to `nil`.
              */
             @objc open var gradient: Gradient? {
-                get { optionalLayer?._gradientLayer?.gradient }
-                set { 
-                    configurate(using: newValue ?? .init(stops: []))
-                    if newValue?.stops.isEmpty == false {
-                        backgroundColor = nil
-                    }
-                }
+                get { optionalLayer?.gradient }
+                set { optionalLayer?.gradient = newValue }
             }
         #endif
         
@@ -352,11 +340,11 @@ import FZSwiftUtils
                 let currentLocations = optionalLayer?._gradientLayer?.locations as? [CGFloat] ?? []
                 let diff = newValue.count - currentLocations.count
                 if diff < 0 {
-                    for i in newValue.count - (diff * -1) ..< newValue.count {
+                    for i in (newValue.count + diff)..<newValue.count {
                         newValue[i] = 0.0
                     }
                 } else if diff > 0 {
-                    newValue.append(contentsOf: Array(repeating: .zero, count: diff))
+                    newValue += Array(repeating: .zero, count: diff)
                 }
                 gradientLocationsAnimatable = newValue
             }
@@ -377,6 +365,8 @@ import FZSwiftUtils
             get { optionalLayer?._gradientLayer?.endPoint ?? .zero }
             set { optionalLayer?._gradientLayer?.endPoint = newValue }
         }
+        
+      
 
         var _gradientColors: [CGColor] {
             get { optionalLayer?._gradientLayer?.colors as? [CGColor] ?? [] }
@@ -385,11 +375,11 @@ import FZSwiftUtils
                 let currentColors = optionalLayer?._gradientLayer?.colors ?? []
                 let diff = newValue.count - currentColors.count
                 if diff < 0 {
-                    for i in newValue.count - (diff * -1) ..< newValue.count {
+                    for i in (newValue.count + diff)..<newValue.count {
                         newValue[safe: i] = newValue[i].nsUIColor?.withAlphaComponent(0.0).cgColor
                     }
                 } else if diff > 0 {
-                    newValue.append(contentsOf: Array(repeating: .clear, count: diff))
+                    newValue += Array(repeating: .clear, count: diff)
                 }
                 gradientColors = newValue
             }
@@ -672,6 +662,23 @@ extension NSUIView {
                 resetMethod(NSSelectorFromString("engine:willBreakConstraint:dueToMutuallyExclusiveConstraints:"))
             }
         }
+    }
+}
+extension Gradient.ColorStop {
+    static func padded(from: [Self], to: [Self]) -> (from: [Self], to: [Self]) {
+        var paddedFrom = from
+        var paddedTo = to
+        if from.count < to.count {
+            for i in from.count..<to.count {
+                paddedFrom +=  to[i].transparent
+            }
+        } else if from.count > to.count {
+            for i in to.count..<from.count {
+                paddedTo += from[i].transparent
+            }
+        }
+
+        return (paddedFrom, paddedTo)
     }
 }
 
